@@ -256,7 +256,10 @@
         </div>
         <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px;">Prayer Requests</div>
       </div>
-      <button onclick="openProfile()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:22px;cursor:pointer;padding:4px;">&#128100;</button>
+      <button onclick="openProfile()" id="header-profile-btn" style="background:none;border:none;cursor:pointer;padding:0;width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+        <span id="header-profile-initials" style="color:rgba(255,255,255,0.6);font-size:22px;">&#128100;</span>
+        <img id="header-profile-img" src="" style="display:none;width:32px;height:32px;object-fit:cover;border-radius:50%;" />
+      </button>
     </header>
     <div class="scroll-body" id="feed-scroll">
       <div class="loading" id="feed-loading">Loading requests...</div>
@@ -615,6 +618,7 @@ async function createGroup() {
 // ── ENTER APP ──
 function enterApp() {
   document.getElementById('group-name-label').textContent = _group.name;
+  refreshProfileAvatar();
   showScreen('screen-main');
   switchTab('requests');
 }
@@ -993,14 +997,21 @@ async function prayTheWord(request) {
 function refreshProfileAvatar() {
   var img = document.getElementById('profile-avatar-img');
   var initEl = document.getElementById('profile-avatar-initials');
+  var hImg = document.getElementById('header-profile-img');
+  var hInit = document.getElementById('header-profile-initials');
   if (_profile && _profile.avatar_url) {
     img.src = _profile.avatar_url;
     img.style.display = 'block';
     initEl.style.display = 'none';
+    hImg.src = _profile.avatar_url;
+    hImg.style.display = 'block';
+    hInit.style.display = 'none';
   } else {
     img.style.display = 'none';
     initEl.style.display = '';
     initEl.textContent = initials(_profile ? _profile.name : '?');
+    hImg.style.display = 'none';
+    hInit.style.display = '';
   }
 }
 
