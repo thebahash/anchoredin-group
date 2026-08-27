@@ -1,5 +1,10 @@
+import { getAuthUserId } from './_auth.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
+
+  const userId = await getAuthUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
   const { requestText, requesterName } = req.body;
   if (!requestText) return res.status(400).json({ error: 'Missing requestText' });

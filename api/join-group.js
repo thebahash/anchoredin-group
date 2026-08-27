@@ -1,14 +1,19 @@
+import { getAuthUserId } from './_auth.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { inviteCode, userId } = req.body;
-  if (!inviteCode || !userId) return res.status(400).json({ error: 'Missing inviteCode or userId' });
+  const userId = await getAuthUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { inviteCode } = req.body;
+  if (!inviteCode) return res.status(400).json({ error: 'Missing inviteCode' });
 
   const sbUrl = process.env.SUPABASE_URL;
   const sbKey = process.env.SUPABASE_SERVICE_KEY;
 
   try {
-    // Find group by invite code (service key bypasses RLS)
+    // Find group by invite code
     const groupRes = await fetch(
       sbUrl + '/rest/v1/groups?invite_code=eq.' + inviteCode.toUpperCase() + '&select=*',
       { headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey } }
@@ -17,7 +22,7 @@ export default async function handler(req, res) {
     if (!groups || !groups[0]) return res.status(404).json({ error: 'Group not found. Check the code and try again.' });
     const group = groups[0];
 
-    // Upsert membership (no-op if already a member)
+    // Upsert membership
     await fetch(sbUrl + '/rest/v1/members', {
       method: 'POST',
       headers: {

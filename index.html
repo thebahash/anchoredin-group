@@ -444,6 +444,14 @@ var _currentTab = 'requests';
 var _editingRequestId = null;
 var _reqCache = {};
 
+async function apiHeaders() {
+  var { data: { session } } = await _sb.auth.getSession();
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + (session ? session.access_token : '')
+  };
+}
+
 // ── INIT ──
 async function init() {
   try {
@@ -569,6 +577,10 @@ async function verifyOTP() {
     _profile = newProfile;
   }
 
+  // Clean up auth temp storage
+  localStorage.removeItem('pending_name');
+  localStorage.removeItem('pending_phone');
+
   // Check if already in a group
   var { data: membership } = await _sb
     .from('members').select('*, groups(*)').eq('user_id', _user.id)
@@ -593,8 +605,8 @@ async function verifyOTP() {
 async function autoJoinGroup(code) {
   var r = await fetch('/api/join-group', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inviteCode: code, userId: _user.id })
+    headers: await apiHeaders(),
+    body: JSON.stringify({ inviteCode: code })
   });
   var data = await r.json();
   if (data.error || !data.group) {
@@ -616,8 +628,8 @@ async function joinGroup() {
 
   var r = await fetch('/api/join-group', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inviteCode: code, userId: _user.id })
+    headers: await apiHeaders(),
+    body: JSON.stringify({ inviteCode: code })
   });
   var data = await r.json();
   if (data.error || !data.group) { showErr(errEl, data.error || 'Group not found.'); return; }
@@ -638,8 +650,8 @@ async function createGroup() {
   try {
     var res = await fetch('/api/create-group', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name, userId: _user.id })
+      headers: await apiHeaders(),
+      body: JSON.stringify({ name: name })
     });
     var data = await res.json();
     if (data.error) { showErr(errEl, data.error); return; }
@@ -686,8 +698,8 @@ async function registerPush() {
     });
     await fetch('/api/subscribe', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: _user.id, groupId: _group.id, subscription: sub.toJSON() })
+      headers: await apiHeaders(),
+      body: JSON.stringify({ groupId: _group.id, subscription: sub.toJSON() })
     });
   } catch (e) {
     console.log('Push setup failed:', e.message);
@@ -760,32 +772,68 @@ function switchGroup(groupId) {
   _group = membership.groups;
   _membership = membership;
   document.getElementById('group-name-label').textContent = _group.name;
+  _reqCache = {}; // clear cache on group switch
   closeGroupDrawer();
   switchTab(_currentTab);
 }
 
 // ── FEED ──
-async function loadFeed() {
-  document.getElementById('feed-loading').style.display = 'block';
-  document.getElementById('feed-list').innerHTML = '';
+var _feedPage = 0;
+var _feedPageSize = 20;
+var _feedHasMore = false;
+
+async function loadFeed(append) {
+  if (!append) _feedPage = 0;
+  document.getElementById('feed-loading').style.display = append ? 'none' : 'block';
+  if (!append) document.getElementById('feed-list').innerHTML = '';
+
+  var from = _feedPage * _feedPageSize;
+  var to = from + _feedPageSize - 1;
 
   var { data: requests } = await _sb
     .from('requests')
     .select('*, profiles(name, avatar_url), request_updates(*, update_hearts(*)), acknowledgments(*)')
     .eq('group_id', _group.id)
     .eq('is_answered', false)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(from, to);
 
   document.getElementById('feed-loading').style.display = 'none';
 
   if (!requests || requests.length === 0) {
-    document.getElementById('feed-list').innerHTML = '<div class="empty-state"><div class="emoji">🙏</div><p>No requests yet.<br>Be the first to share something.</p></div>';
+    if (!append) document.getElementById('feed-list').innerHTML = '<div class="empty-state"><div class="emoji">🙏</div><p>No requests yet.<br>Be the first to share something.</p></div>';
+    _feedHasMore = false;
+    renderLoadMore();
     return;
   }
 
+  _feedHasMore = requests.length === _feedPageSize;
   enrichUpdatesWithHearts(requests);
   requests.forEach(function(r) { _reqCache[r.id] = r; });
-  document.getElementById('feed-list').innerHTML = requests.map(function(r) { return renderRequestCard(r, false); }).join('');
+  var html = requests.map(function(r) { return renderRequestCard(r, r.user_id === _user.id); }).join('');
+  if (append) {
+    document.getElementById('feed-list').insertAdjacentHTML('beforeend', html);
+  } else {
+    document.getElementById('feed-list').innerHTML = html;
+  }
+  renderLoadMore();
+}
+
+function renderLoadMore() {
+  var existing = document.getElementById('feed-load-more');
+  if (existing) existing.remove();
+  if (_feedHasMore) {
+    var btn = document.createElement('div');
+    btn.id = 'feed-load-more';
+    btn.style.cssText = 'text-align:center;padding:12px 0 24px;';
+    btn.innerHTML = '<button onclick="loadMoreFeed()" class="btn btn-outline">Load more</button>';
+    document.getElementById('feed-list').appendChild(btn);
+  }
+}
+
+async function loadMoreFeed() {
+  _feedPage++;
+  await loadFeed(true);
 }
 
 async function loadMine() {
@@ -794,7 +842,7 @@ async function loadMine() {
 
   var { data: requests } = await _sb
     .from('requests')
-    .select('*, request_updates(*, update_hearts(*)), acknowledgments(*)')
+    .select('*, profiles(name, avatar_url), request_updates(*, update_hearts(*)), acknowledgments(*)')
     .eq('group_id', _group.id)
     .eq('user_id', _user.id)
     .eq('is_answered', false)
@@ -856,7 +904,7 @@ async function loadAnswered() {
 
   var { data: requests } = await _sb
     .from('requests')
-    .select('*, profiles(name, avatar_url), request_updates(*)')
+    .select('*, profiles(name, avatar_url), request_updates(*), acknowledgments(*)')
     .eq('group_id', _group.id)
     .eq('is_answered', true)
     .order('updated_at', { ascending: false });
@@ -1007,11 +1055,13 @@ async function submitRequest(journey) {
   if (error) { showErr(errEl, error.message); return; }
 
   // Notify group members via SMS (fire and forget)
-  fetch('/api/notify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ groupId: _group.id, requesterId: _user.id, requesterName: _profile.name, requestPreview: text })
-  }).catch(function() {});
+  apiHeaders().then(function(h) {
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: h,
+      body: JSON.stringify({ groupId: _group.id, requesterName: _profile.name, requestPreview: text })
+    }).catch(function() {});
+  });
 
   document.getElementById('post-text').value = '';
 
@@ -1067,7 +1117,7 @@ async function prayTheWord(request) {
   try {
     var res = await fetch('/api/pray', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await apiHeaders(),
       body: JSON.stringify({
         requestText: request.body,
         requesterName: request.profiles ? request.profiles.name : 'Someone'

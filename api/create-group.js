@@ -1,8 +1,13 @@
+import { getAuthUserId } from './_auth.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { name, userId } = req.body;
-  if (!name || !userId) return res.status(400).json({ error: 'Missing name or userId' });
+  const userId = await getAuthUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'Missing name' });
 
   const sbUrl = process.env.SUPABASE_URL;
   const sbKey = process.env.SUPABASE_SERVICE_KEY;
@@ -47,7 +52,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({ group_id: group.id, user_id: userId, role: 'leader' })
     });
 
-    // Fetch the membership row to return
+    // Fetch the membership row
     const memRes = await fetch(
       sbUrl + '/rest/v1/members?group_id=eq.' + group.id + '&user_id=eq.' + userId + '&select=*',
       { headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey } }
