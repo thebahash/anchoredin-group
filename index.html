@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Anchored In — Group</title>
+  <meta name="description" content="Bible study & prayer group app" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy: #1a2a4a;
+      --navy-light: #243555;
+      --gold: #c9a84c;
+      --gold-light: #e6c96f;
+      --cream: #f7f4ef;
+      --text: #2c2c2c;
+      --muted: #777;
+      --border: #e0ddd8;
+      --card-bg: #fff;
+      --tab-h: 68px;
+      --header-h: 56px;
+    }
+
+    html, body { height: 100%; background: var(--cream); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    /* ── SCREENS ── */
+    .screen { display: none; flex-direction: column; height: 100dvh; }
+    .screen.active { display: flex; }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--navy);
+      color: #fff;
+      height: var(--header-h);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    header .back-btn {
+      background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 4px 8px 4px 0;
+    }
+    header h1 { font-size: 17px; font-weight: 600; flex: 1; }
+    header .group-name { font-size: 12px; color: var(--gold-light); }
+
+    /* ── SCROLLABLE BODY ── */
+    .scroll-body {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 12px 16px;
+      padding-bottom: 24px;
+    }
+
+    /* ── BOTTOM NAV ── */
+    .bottom-nav {
+      height: var(--tab-h);
+      background: var(--navy);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      flex-shrink: 0;
+      padding: 0 8px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      background: none; border: none; color: rgba(255,255,255,0.5);
+      font-size: 10px; cursor: pointer; padding: 8px 10px;
+      transition: color 0.15s;
+      flex: 1;
+    }
+    .nav-item .icon { font-size: 22px; line-height: 1; }
+    .nav-item.active { color: var(--gold-light); }
+    .nav-pill {
+      background: var(--gold);
+      color: var(--navy);
+      border: none;
+      border-radius: 28px;
+      padding: 10px 18px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+      line-height: 1.2;
+      text-align: center;
+    }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--card-bg);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    .req-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--navy); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 700; flex-shrink: 0;
+    }
+    .req-meta { flex: 1; }
+    .req-name { font-size: 14px; font-weight: 600; }
+    .req-date { font-size: 11px; color: var(--muted); }
+    .req-body { font-size: 15px; line-height: 1.5; color: var(--text); }
+    .req-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+    .pray-count { font-size: 13px; color: var(--muted); }
+
+    .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .btn {
+      padding: 8px 14px; border-radius: 20px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-pray { background: var(--navy); color: #fff; }
+    .btn-word { background: var(--gold); color: var(--navy); }
+    .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+    /* ── SECTION LABEL ── */
+    .section-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; margin: 4px 0 10px; }
+
+    /* ── MEMBERS ── */
+    .member-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .member-row:last-child { border-bottom: none; }
+    .member-info { flex: 1; }
+    .member-name { font-size: 15px; font-weight: 600; }
+    .member-role { font-size: 12px; color: var(--gold); font-weight: 600; }
+    .member-sub { font-size: 12px; color: var(--muted); }
+    .member-actions { display: flex; gap: 8px; }
+    .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; }
+
+    /* ── ANSWERED ── */
+    .answered-card { opacity: 0.85; }
+    .answered-badge { display: inline-block; background: #e6f4ea; color: #2d7a3a; font-size: 11px; font-weight: 700; border-radius: 10px; padding: 2px 8px; margin-bottom: 8px; }
+
+    /* ── POST REQUEST FORM ── */
+    .form-group { margin-bottom: 16px; }
+    .form-label { font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block; }
+    textarea, input[type=text], input[type=tel] {
+      width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 12px; font-size: 15px; font-family: inherit; background: #fff;
+      outline: none; resize: none;
+    }
+    textarea:focus, input:focus { border-color: var(--navy); }
+
+    .btn-primary {
+      width: 100%; padding: 14px; background: var(--navy); color: #fff;
+      border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer;
+      margin-top: 4px;
+    }
+    .btn-gold {
+      width: 100%; padding: 14px; background: var(--gold); color: var(--navy);
+      border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+
+    /* ── JOIN / ONBOARDING ── */
+    .onboard-wrap { padding: 32px 24px; text-align: center; }
+    .onboard-logo { font-size: 28px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+    .onboard-sub { font-size: 14px; color: var(--muted); margin-bottom: 32px; }
+    .onboard-wrap h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .onboard-wrap p { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+
+    /* ── UPDATE BUBBLE ── */
+    .update-bubble {
+      background: var(--cream); border-radius: 10px; padding: 10px 12px;
+      font-size: 13px; color: var(--text); margin-top: 10px;
+      border-left: 3px solid var(--gold);
+    }
+    .update-bubble .upd-date { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    /* ── FLOATING ADD BTN ── */
+    .fab {
+      position: fixed; bottom: calc(var(--tab-h) + 16px); right: 16px;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: var(--gold); color: var(--navy);
+      border: none; font-size: 26px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18); cursor: pointer;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: ONBOARDING / JOIN
+═══════════════════════════════════════════ -->
+<div class="screen active" id="screen-join">
+  <div class="scroll-body">
+    <div class="onboard-wrap">
+      <div class="onboard-logo">Anchored In</div>
+      <div class="onboard-sub">Group</div>
+
+      <h2>Join or start a group</h2>
+      <p>Enter your group's invite code, or create a new group for your Bible study or church community.</p>
+
+      <div class="form-group">
+        <label class="form-label">Your name</label>
+        <input type="text" id="join-name" placeholder="First name or full name" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone number</label>
+        <input type="tel" id="join-phone" placeholder="+1 (555) 000-0000" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Invite code (optional)</label>
+        <input type="text" id="join-code" placeholder="e.g. GRACE-24" style="letter-spacing:0.08em;" />
+      </div>
+
+      <button class="btn-primary" onclick="doJoin()">Continue</button>
+      <div style="margin: 16px 0; text-align:center; color:var(--muted); font-size:13px;">— or —</div>
+      <button class="btn-gold" onclick="doCreateGroup()">Start a new group</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: MAIN APP (tabbed)
+═══════════════════════════════════════════ -->
+<div class="screen" id="screen-main">
+
+  <!-- TAB: REQUESTS FEED -->
+  <div id="tab-requests" class="tab-content" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+    <header>
+      <div>
+        <h1>Prayer Requests</h1>
+        <div class="group-name" id="group-name-label">Tuesday Morning Group</div>
+      </div>
+    </header>
+    <div class="scroll-body" id="feed-scroll">
+
+      <div class="section-label">This week</div>
+
+      <!-- Request card -->
+      <div class="card">
+        <div class="req-header">
+          <div class="avatar">S</div>
+          <div class="req-meta">
+            <div class="req-name">Sarah M.</div>
+            <div class="req-date">2 hours ago</div>
+          </div>
+        </div>
+        <div class="req-body">My mom goes in for surgery Thursday. Just asking for peace and for the doctors' hands.</div>
+        <div class="update-bubble">
+          <strong>Update:</strong> Surgery went well — she's resting and doing okay. Thank you all so much. 🙏
+          <div class="upd-date">Yesterday</div>
+        </div>
+        <div class="req-footer">
+          <span class="pray-count">🤲 8 praying</span>
+          <div class="btn-row" style="margin-top:0;">
+            <button class="btn btn-pray btn-sm" onclick="markPraying(this)">🤲 I prayed</button>
+            <button class="btn btn-word btn-sm" onclick="prayTheWord()">Pray the Word</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="req-header">
+          <div class="avatar">J</div>
+          <div class="req-meta">
+            <div class="req-name">James T.</div>
+            <div class="req-date">Yesterday</div>
+          </div>
+        </div>
+        <div class="req-body">Job interview Friday at 2pm. Praying for clarity and confidence.</div>
+        <div class="req-footer">
+          <span class="pray-count">🤲 5 praying</span>
+          <div class="btn-row" style="margin-top:0;">
+            <button class="btn btn-pray btn-sm" onclick="markPraying(this)">🤲 I prayed</button>
+            <button class="btn btn-word btn-sm" onclick="prayTheWord()">Pray the Word</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="req-header">
+          <div class="avatar">M</div>
+          <div class="req-meta">
+            <div class="req-name">Michelle R.</div>
+            <div class="req-date">2 days ago</div>
+          </div>
+        </div>
+        <div class="req-body">My son is really struggling right now — school, friendships, just a lot. Asking for wisdom on how to support him.</div>
+        <div class="req-footer">
+          <span class="pray-count">🤲 11 praying</span>
+          <div class="btn-row" style="margin-top:0;">
+            <button class="btn btn-pray btn-sm" onclick="markPraying(this)">🤲 I prayed</button>
+            <button class="btn btn-word btn-sm" onclick="prayTheWord()">Pray the Word</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FAB: post request -->
+    <button class="fab" onclick="goToPost()" title="Post a request">+</button>
+  </div>
+
+  <!-- TAB: MINE -->
+  <div id="tab-mine" class="tab-content" style="display:none;flex-direction:column;flex:1;min-height:0;">
+    <header>
+      <h1>My Requests</h1>
+    </header>
+    <div class="scroll-body">
+
+      <div class="section-label">Active</div>
+
+      <div class="card">
+        <div class="req-body">My mom goes in for surgery Thursday. Just asking for peace and for the doctors' hands.</div>
+        <div class="update-bubble">
+          <strong>Update:</strong> Surgery went well — she's resting and doing okay. Thank you all so much. 🙏
+          <div class="upd-date">Yesterday</div>
+        </div>
+        <div class="req-footer">
+          <span class="pray-count">🤲 8 praying</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-outline btn-sm" onclick="showUpdateForm()">+ Add update</button>
+          <button class="btn btn-word btn-sm" onclick="goToJourney()">Take the journey</button>
+          <button class="btn btn-outline btn-sm" onclick="markAnswered()">✓ Answered</button>
+        </div>
+      </div>
+
+      <div style="text-align:center; padding: 24px 0;">
+        <button class="btn-primary" style="max-width:260px; margin: 0 auto; display:block;" onclick="goToPost()">+ Post a new request</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: MEMBERS -->
+  <div id="tab-members" class="tab-content" style="display:none;flex-direction:column;flex:1;min-height:0;">
+    <header>
+      <h1>Members</h1>
+    </header>
+    <div class="scroll-body">
+
+      <div class="section-label">Leaders</div>
+      <div class="card" style="padding: 8px 16px;">
+        <div class="member-row" onclick="showMemberDetail('Sarah M.', true)">
+          <div class="avatar">S</div>
+          <div class="member-info">
+            <div class="member-name">Sarah M. <span class="member-role">Leader</span></div>
+            <div class="member-sub">1 active request</div>
+          </div>
+          <div class="member-actions">
+            <button class="icon-btn" onclick="event.stopPropagation(); textMember('+15550001')" title="Text">💬</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">Members</div>
+      <div class="card" style="padding: 8px 16px;">
+        <div class="member-row" onclick="showMemberDetail('James T.', false)">
+          <div class="avatar">J</div>
+          <div class="member-info">
+            <div class="member-name">James T.</div>
+            <div class="member-sub">1 active request</div>
+          </div>
+          <div class="member-actions">
+            <button class="icon-btn" onclick="event.stopPropagation(); textMember('+15550002')" title="Text">💬</button>
+          </div>
+        </div>
+        <div class="member-row" onclick="showMemberDetail('Michelle R.', false)">
+          <div class="avatar">M</div>
+          <div class="member-info">
+            <div class="member-name">Michelle R.</div>
+            <div class="member-sub">1 active request</div>
+          </div>
+          <div class="member-actions">
+            <button class="icon-btn" onclick="event.stopPropagation(); textMember('+15550003')" title="Text">💬</button>
+          </div>
+        </div>
+        <div class="member-row" onclick="showMemberDetail('You', false)">
+          <div class="avatar" style="background:var(--gold);color:var(--navy);">A</div>
+          <div class="member-info">
+            <div class="member-name">You</div>
+            <div class="member-sub">1 active request</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:center; padding: 8px 0 24px;">
+        <button class="btn btn-outline" onclick="inviteMember()">+ Invite someone</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: ANSWERED -->
+  <div id="tab-answered" class="tab-content" style="display:none;flex-direction:column;flex:1;min-height:0;">
+    <header>
+      <h1>Answered 🙌</h1>
+    </header>
+    <div class="scroll-body">
+      <div class="section-label">Praise reports</div>
+
+      <div class="card answered-card">
+        <span class="answered-badge">✓ Answered</span>
+        <div class="req-header">
+          <div class="avatar">L</div>
+          <div class="req-meta">
+            <div class="req-name">Lisa K.</div>
+            <div class="req-date">3 weeks ago</div>
+          </div>
+        </div>
+        <div class="req-body">Praying for the house to sell — we had an offer fall through twice.</div>
+        <div class="update-bubble">
+          <strong>Praise report:</strong> We closed on Friday!! God is so faithful. Thank you for every prayer.
+          <div class="upd-date">2 weeks ago</div>
+        </div>
+      </div>
+
+      <div class="card answered-card">
+        <span class="answered-badge">✓ Answered</span>
+        <div class="req-header">
+          <div class="avatar">J</div>
+          <div class="req-meta">
+            <div class="req-name">James T.</div>
+            <div class="req-date">1 month ago</div>
+          </div>
+        </div>
+        <div class="req-body">Job interview Friday at 2pm. Praying for clarity and confidence.</div>
+        <div class="update-bubble">
+          <strong>Praise report:</strong> I got the job! Starting in two weeks.
+          <div class="upd-date">3 weeks ago</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV (shared) -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" id="nav-requests" onclick="switchTab('requests')">
+      <span class="icon">🙏</span>Requests
+    </button>
+    <button class="nav-item" id="nav-mine" onclick="switchTab('mine')">
+      <span class="icon">👤</span>Mine
+    </button>
+    <button class="nav-pill" onclick="textGroup()">Text<br>Group</button>
+    <button class="nav-item" id="nav-members" onclick="switchTab('members')">
+      <span class="icon">👥</span>Members
+    </button>
+    <button class="nav-item" id="nav-answered" onclick="switchTab('answered')">
+      <span class="icon">🙌</span>Answered
+    </button>
+  </nav>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: POST A REQUEST
+═══════════════════════════════════════════ -->
+<div class="screen" id="screen-post">
+  <header>
+    <button class="back-btn" onclick="goBack('screen-main')">&#8592;</button>
+    <h1>Post a Request</h1>
+  </header>
+  <div class="scroll-body">
+    <div class="form-group">
+      <label class="form-label">What would you like prayer for?</label>
+      <textarea id="post-text" rows="5" placeholder="Share what's on your heart..."></textarea>
+    </div>
+    <div style="font-size:13px; color:var(--muted); margin-bottom:20px;">
+      This will be visible to everyone in your group.
+    </div>
+    <button class="btn-primary" onclick="submitRequest()">Post to Group</button>
+    <div style="margin: 14px 0; text-align:center; color:var(--muted); font-size:13px;">After posting you can:</div>
+    <button class="btn-gold" onclick="submitThenJourney('identity')">Post + Take the Truth Journey</button>
+    <div style="height:10px;"></div>
+    <button class="btn btn-outline" style="width:100%;padding:13px;border-radius:12px;font-size:15px;" onclick="submitThenJourney('renew')">Post + Renew My Mind (quick)</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: MEMBER DETAIL
+═══════════════════════════════════════════ -->
+<div class="screen" id="screen-member">
+  <header>
+    <button class="back-btn" onclick="goBack('screen-main')">&#8592;</button>
+    <h1 id="member-detail-name">Sarah M.</h1>
+  </header>
+  <div class="scroll-body" id="member-detail-body">
+    <!-- populated dynamically -->
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: PRAY THE WORD (stub)
+═══════════════════════════════════════════ -->
+<div class="screen" id="screen-pray-word">
+  <header>
+    <button class="back-btn" onclick="goBack('screen-main')">&#8592;</button>
+    <h1>Pray the Word</h1>
+  </header>
+  <div class="scroll-body" style="text-align:center; padding-top:40px;">
+    <div style="font-size:48px; margin-bottom:16px;">🕊️</div>
+    <p style="font-size:15px; color:var(--muted); line-height:1.6; max-width:300px; margin:0 auto;">
+      Scripture-based prayer for this request coming soon — powered by the same engine as Anchored In.
+    </p>
+    <div style="margin-top:32px; background:var(--card-bg); border-radius:14px; padding:20px; text-align:left;">
+      <div style="font-size:13px; font-weight:700; color:var(--muted); margin-bottom:8px;">SAMPLE</div>
+      <p style="font-size:15px; line-height:1.7; font-style:italic; color:var(--text);">
+        "Lord, Your Word says You are close to the brokenhearted and save those who are crushed in spirit (Psalm 34:18). We bring Sarah's mom before You right now. We ask for Your peace that surpasses understanding to guard their hearts and minds..."
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+var _currentScreen = 'screen-join';
+var _currentTab = 'requests';
+var _groupName = 'Tuesday Morning Group';
+
+// ── NAVIGATION ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  _currentScreen = id;
+}
+
+function goBack(to) {
+  showScreen(to || 'screen-main');
+}
+
+// ── TABS ──
+function switchTab(tab) {
+  _currentTab = tab;
+  document.querySelectorAll('.tab-content').forEach(function(t) { t.style.display = 'none'; });
+  var el = document.getElementById('tab-' + tab);
+  if (el) { el.style.display = 'flex'; el.style.flexDirection = 'column'; el.style.flex = '1'; el.style.minHeight = '0'; }
+
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  var nav = document.getElementById('nav-' + tab);
+  if (nav) nav.classList.add('active');
+}
+
+// ── ONBOARDING ──
+function doJoin() {
+  var name = document.getElementById('join-name').value.trim();
+  if (!name) { alert('Please enter your name.'); return; }
+  showScreen('screen-main');
+  switchTab('requests');
+}
+
+function doCreateGroup() {
+  var name = document.getElementById('join-name').value.trim();
+  if (!name) { alert('Please enter your name first.'); return; }
+  var groupName = prompt('What would you like to name your group?', 'My Bible Study');
+  if (groupName) _groupName = groupName;
+  document.getElementById('group-name-label').textContent = _groupName;
+  showScreen('screen-main');
+  switchTab('requests');
+}
+
+// ── REQUEST ACTIONS ──
+function markPraying(btn) {
+  btn.textContent = '🤲 Praying';
+  btn.style.background = '#e6f4ea';
+  btn.style.color = '#2d7a3a';
+  btn.disabled = true;
+}
+
+function prayTheWord() {
+  showScreen('screen-pray-word');
+}
+
+function goToPost() {
+  showScreen('screen-post');
+}
+
+function submitRequest() {
+  var text = document.getElementById('post-text').value.trim();
+  if (!text) { alert('Please write your request first.'); return; }
+  goBack('screen-main');
+  switchTab('mine');
+}
+
+function submitThenJourney(type) {
+  var text = document.getElementById('post-text').value.trim();
+  if (!text) { alert('Please write your request first.'); return; }
+  if (type === 'identity') {
+    window.open('https://anchoredin.app/identity.html', '_blank');
+  } else {
+    window.open('https://anchoredin.app/renew.html', '_blank');
+  }
+  goBack('screen-main');
+  switchTab('mine');
+}
+
+function showUpdateForm() {
+  var upd = prompt('What update would you like to share?');
+  if (upd) alert('Update posted!');
+}
+
+function markAnswered() {
+  if (confirm('Mark this request as answered? It will move to the Answered tab.')) {
+    switchTab('answered');
+  }
+}
+
+function goToJourney() {
+  if (confirm('This will open the Anchored In truth journey in a new tab. Continue?')) {
+    window.open('https://anchoredin.app/identity.html', '_blank');
+  }
+}
+
+// ── MEMBERS ──
+function showMemberDetail(name, isLeader) {
+  document.getElementById('member-detail-name').textContent = name;
+  var body = document.getElementById('member-detail-body');
+  body.innerHTML = '<div class="section-label">Active Requests</div>' +
+    '<div class="card"><div class="req-body">Placeholder request for ' + name + '.</div>' +
+    '<div class="btn-row"><button class="btn btn-pray btn-sm" onclick="markPraying(this)">🤲 I prayed</button>' +
+    '<button class="btn btn-word btn-sm" onclick="prayTheWord()">Pray the Word</button></div></div>' +
+    (isLeader ? '' : '<div style="margin-top:16px;"><button class="btn btn-outline" onclick="promoteLeader(\'' + name + '\')">Make leader</button></div>');
+  showScreen('screen-member');
+}
+
+function promoteLeader(name) {
+  alert(name + ' is now a leader.');
+}
+
+function textMember(phone) {
+  window.open('sms:' + phone);
+}
+
+function inviteMember() {
+  var code = _groupName.toUpperCase().replace(/\s+/g, '-').substring(0, 8);
+  if (navigator.share) {
+    navigator.share({ title: 'Join ' + _groupName + ' on Anchored In Group', text: 'Join our prayer group! Use code: ' + code + '\n\nhttps://group.anchoredin.app' });
+  } else {
+    window.open('sms:?&body=' + encodeURIComponent('Join our prayer group on Anchored In! Code: ' + code + '\nhttps://group.anchoredin.app'));
+  }
+}
+
+function textGroup() {
+  window.open('sms:?&body=' + encodeURIComponent('Hey prayer group — checking in from Anchored In Group! https://group.anchoredin.app'));
+}
+</script>
+</body>
+</html>
