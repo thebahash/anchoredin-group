@@ -619,8 +619,25 @@ async function createGroup() {
 function enterApp() {
   document.getElementById('group-name-label').textContent = _group.name;
   refreshProfileAvatar();
+  subscribeToGroup();
   showScreen('screen-main');
   switchTab('requests');
+}
+
+// ── REALTIME ──
+var _realtimeChannel = null;
+
+function subscribeToGroup() {
+  if (_realtimeChannel) _sb.removeChannel(_realtimeChannel);
+  _realtimeChannel = _sb
+    .channel('group-' + _group.id)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'requests', filter: 'group_id=eq.' + _group.id }, function() {
+      loadFeed();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests', filter: 'group_id=eq.' + _group.id }, function() {
+      loadFeed();
+    })
+    .subscribe();
 }
 
 // ── GROUP SWITCHER ──
