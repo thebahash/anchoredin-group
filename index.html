@@ -160,7 +160,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Phone number</label>
-        <input type="tel" id="input-phone" placeholder="+1 (555) 000-0000" autocomplete="tel" />
+        <input type="tel" id="input-phone" placeholder="(555) 000-0000" autocomplete="tel" />
       </div>
       <button class="btn-primary" id="btn-send-otp" onclick="sendOTP()">Send code →</button>
       <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:16px;line-height:1.6;">By continuing you agree to our <a href="/privacy.html" style="color:var(--gold);">Privacy Policy</a>.<br>Questions? <a href="mailto:hello@anchoredin.app" style="color:var(--gold);">hello@anchoredin.app</a></p>
@@ -248,14 +248,15 @@
 
   <!-- TAB: REQUESTS -->
   <div id="tab-requests" class="tab-content" style="display:flex;flex-direction:column;flex:1;min-height:0;">
-    <header style="cursor:pointer;" onclick="openGroupDrawer()">
-      <div style="flex:1;">
+    <header>
+      <div style="flex:1;cursor:pointer;" onclick="openGroupDrawer()">
         <div style="display:flex;align-items:center;gap:6px;">
           <div id="group-name-label" style="font-size:17px;font-weight:700;color:#fff;"></div>
           <span style="font-size:11px;color:var(--gold-light);">&#9660;</span>
         </div>
         <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px;">Prayer Requests</div>
       </div>
+      <button onclick="openProfile()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:22px;cursor:pointer;padding:4px;">&#128100;</button>
     </header>
     <div class="scroll-body" id="feed-scroll">
       <div class="loading" id="feed-loading">Loading requests...</div>
@@ -359,6 +360,55 @@
   <div class="scroll-body" id="member-detail-body"></div>
 </div>
 
+<!-- SCREEN: PRAY THE WORD -->
+<div class="screen" id="screen-pray">
+  <header>
+    <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
+    <h1>Pray the Word</h1>
+  </header>
+  <div class="scroll-body">
+    <div id="pray-loading" style="text-align:center;padding:40px 0;">
+      <div style="font-size:36px;margin-bottom:12px;">🕊️</div>
+      <div style="color:var(--muted);font-size:14px;">Preparing a prayer...</div>
+    </div>
+    <div id="pray-result" style="display:none;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">For</div>
+      <div class="card" style="font-size:15px;line-height:1.6;color:var(--muted);font-style:italic;" id="pray-request-preview"></div>
+      <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin:16px 0 10px;">Scripture-based prayer</div>
+      <div class="card" style="font-size:16px;line-height:1.8;color:var(--text);" id="pray-text"></div>
+      <div style="margin-top:16px;display:flex;gap:10px;">
+        <button class="btn-primary" onclick="prayTheWord(_prayRequest)" style="flex:1;">Generate another</button>
+      </div>
+    </div>
+    <div id="pray-error" class="error-msg" style="display:none;margin-top:20px;"></div>
+  </div>
+</div>
+
+<!-- SCREEN: PROFILE -->
+<div class="screen" id="screen-profile">
+  <header>
+    <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
+    <h1>Your Profile</h1>
+  </header>
+  <div class="scroll-body">
+    <div id="profile-error" class="error-msg" style="display:none;"></div>
+    <div class="form-group">
+      <label class="form-label">Your name</label>
+      <input type="text" id="profile-name" placeholder="Your name" />
+    </div>
+    <button class="btn-primary" onclick="saveProfile()">Save name</button>
+
+    <div style="margin-top:32px;border-top:1px solid var(--border);padding-top:24px;">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px;">GROUPS</div>
+      <div id="profile-groups-list"></div>
+    </div>
+
+    <div style="margin-top:32px;border-top:1px solid var(--border);padding-top:24px;text-align:center;">
+      <button onclick="signOut()" style="background:none;border:none;color:#c00;font-size:14px;cursor:pointer;padding:8px;">Sign out</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── GLOBALS ──
 var _sb = null;
@@ -368,6 +418,7 @@ var _group = null;
 var _membership = null;
 var _currentTab = 'requests';
 var _editingRequestId = null;
+var _reqCache = {};
 
 // ── INIT ──
 async function init() {
@@ -415,14 +466,26 @@ async function loadUserContext() {
 }
 
 // ── AUTH ──
+function formatPhone(raw) {
+  // Strip everything except digits and leading +
+  var digits = raw.replace(/[^\d]/g, '');
+  if (raw.startsWith('+')) return '+' + digits;
+  // 10-digit US number → add +1
+  if (digits.length === 10) return '+1' + digits;
+  // 11-digit starting with 1 → add +
+  if (digits.length === 11 && digits[0] === '1') return '+' + digits;
+  return '+' + digits;
+}
+
 async function sendOTP() {
   var name = document.getElementById('input-name').value.trim();
-  var phone = document.getElementById('input-phone').value.trim().replace(/\s/g, '');
+  var raw = document.getElementById('input-phone').value.trim();
+  var phone = formatPhone(raw);
   var errEl = document.getElementById('phone-error');
   errEl.style.display = 'none';
 
   if (!name) { showErr(errEl, 'Please enter your name.'); return; }
-  if (!phone) { showErr(errEl, 'Please enter your phone number.'); return; }
+  if (!raw) { showErr(errEl, 'Please enter your phone number.'); return; }
 
   var btn = document.getElementById('btn-send-otp');
   btn.disabled = true; btn.textContent = 'Sending...';
@@ -594,6 +657,7 @@ async function loadFeed() {
   }
 
   enrichUpdatesWithHearts(requests);
+  requests.forEach(function(r) { _reqCache[r.id] = r; });
   document.getElementById('feed-list').innerHTML = requests.map(function(r) { return renderRequestCard(r, false); }).join('');
 }
 
@@ -617,6 +681,7 @@ async function loadMine() {
   }
 
   enrichUpdatesWithHearts(requests);
+  requests.forEach(function(r) { _reqCache[r.id] = r; });
   document.getElementById('mine-list').innerHTML = requests.map(function(r) { return renderRequestCard(r, true); }).join('');
 }
 
@@ -733,12 +798,13 @@ function renderRequestCard(r, isOwner) {
     (hasPrayed
       ? '<button class="btn btn-pray btn-sm btn-prayed" disabled>🤲 Praying</button>'
       : '<button class="btn btn-pray btn-sm" onclick="markPraying(\'' + r.id + '\', this)">🤲 I prayed</button>') +
+    '<button class="btn btn-word btn-sm" onclick="prayTheWord(_reqCache[\'' + r.id + '\'])">Pray the Word</button>' +
     '</div>' +
     '</div>' +
     (isOwner
       ? '<div class="btn-row">' +
         '<button class="btn btn-outline btn-sm" onclick="openUpdateForm(\'' + r.id + '\')">+ Update</button>' +
-        '<button class="btn btn-word btn-sm" onclick="goToJourney()">Take journey</button>' +
+        '<button class="btn btn-outline btn-sm" onclick="goToJourney()">Take journey</button>' +
         '<button class="btn btn-outline btn-sm" onclick="markAnswered(\'' + r.id + '\')">✓ Answered</button>' +
         '</div>'
       : '') +
@@ -807,6 +873,13 @@ async function submitRequest(journey) {
 
   if (error) { showErr(errEl, error.message); return; }
 
+  // Notify group members via SMS (fire and forget)
+  fetch('/api/notify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ groupId: _group.id, requesterName: _profile.name, requestPreview: text })
+  }).catch(function() {});
+
   document.getElementById('post-text').value = '';
 
   if (journey === 'identity') { window.open('https://anchoredin.app/identity.html', '_blank'); }
@@ -845,6 +918,93 @@ function goToJourney() {
   if (confirm('Open the Anchored In truth journey in a new tab?')) {
     window.open('https://anchoredin.app/identity.html', '_blank');
   }
+}
+
+// ── PRAY THE WORD ──
+var _prayRequest = null;
+
+async function prayTheWord(request) {
+  _prayRequest = request;
+  showScreen('screen-pray');
+  document.getElementById('pray-loading').style.display = 'block';
+  document.getElementById('pray-result').style.display = 'none';
+  document.getElementById('pray-error').style.display = 'none';
+  document.getElementById('pray-request-preview').textContent = request.body;
+
+  try {
+    var res = await fetch('/api/pray', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestText: request.body,
+        requesterName: request.profiles ? request.profiles.name : 'Someone'
+      })
+    });
+    var data = await res.json();
+    document.getElementById('pray-loading').style.display = 'none';
+    if (data.prayer) {
+      document.getElementById('pray-text').textContent = data.prayer;
+      document.getElementById('pray-result').style.display = 'block';
+    } else {
+      showErr(document.getElementById('pray-error'), data.error || 'Something went wrong.');
+    }
+  } catch (e) {
+    document.getElementById('pray-loading').style.display = 'none';
+    showErr(document.getElementById('pray-error'), 'Could not generate prayer. Try again.');
+  }
+}
+
+// ── PROFILE ──
+async function openProfile() {
+  document.getElementById('profile-name').value = _profile ? _profile.name : '';
+
+  // Load all groups
+  var { data: memberships } = await _sb
+    .from('members').select('*, groups(*)').eq('user_id', _user.id)
+    .order('joined_at', { ascending: false });
+
+  var html = (memberships || []).map(function(m) {
+    var isActive = _group && m.group_id === _group.id;
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">' +
+      '<div>' +
+      '<div style="font-size:15px;font-weight:' + (isActive ? '700' : '400') + ';">' + esc(m.groups.name) + (isActive ? ' <span style="color:var(--gold);font-size:11px;">active</span>' : '') + '</div>' +
+      '<div style="font-size:12px;color:var(--muted);">' + m.role + '</div>' +
+      '</div>' +
+      (!isActive ? '<button onclick="leaveGroup(\'' + m.group_id + '\', \'' + esc(m.groups.name) + '\')" style="background:none;border:none;color:#c00;font-size:13px;cursor:pointer;">Leave</button>' : '') +
+      '</div>';
+  }).join('');
+
+  document.getElementById('profile-groups-list').innerHTML = html || '<div style="color:var(--muted);font-size:14px;">No groups yet.</div>';
+  showScreen('screen-profile');
+}
+
+async function saveProfile() {
+  var name = document.getElementById('profile-name').value.trim();
+  var errEl = document.getElementById('profile-error');
+  errEl.style.display = 'none';
+  if (!name) { showErr(errEl, 'Please enter a name.'); return; }
+  var { error } = await _sb.from('profiles').update({ name }).eq('id', _user.id);
+  if (error) { showErr(errEl, error.message); return; }
+  _profile.name = name;
+  showScreen('screen-main');
+}
+
+async function leaveGroup(groupId, groupName) {
+  if (!confirm('Leave ' + groupName + '? You can rejoin with the invite code.')) return;
+  await _sb.from('members').delete().eq('group_id', groupId).eq('user_id', _user.id);
+  if (_group && _group.id === groupId) {
+    // Switched away from active group — reload
+    await loadUserContext();
+  } else {
+    openProfile();
+  }
+}
+
+async function signOut() {
+  if (!confirm('Sign out?')) return;
+  await _sb.auth.signOut();
+  _user = null; _profile = null; _group = null; _membership = null;
+  showScreen('screen-phone');
 }
 
 async function showMemberDetail(name, userId, role) {
