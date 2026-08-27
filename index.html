@@ -4,391 +4,217 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>Anchored In — Group</title>
-  <meta name="description" content="Bible study & prayer group app" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --navy: #1a2a4a;
-      --navy-light: #243555;
-      --gold: #c9a84c;
-      --gold-light: #e6c96f;
-      --cream: #f7f4ef;
-      --text: #2c2c2c;
-      --muted: #777;
-      --border: #e0ddd8;
-      --card-bg: #fff;
-      --tab-h: 68px;
-      --header-h: 56px;
+      --navy: #1a2a4a; --navy-light: #243555; --gold: #c9a84c; --gold-light: #e6c96f;
+      --cream: #f7f4ef; --text: #2c2c2c; --muted: #777; --border: #e0ddd8;
+      --card-bg: #fff; --tab-h: 68px; --header-h: 56px;
     }
-
     html, body { height: 100%; background: var(--cream); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 
-    /* ── SCREENS ── */
     .screen { display: none; flex-direction: column; height: 100dvh; }
     .screen.active { display: flex; }
 
-    /* ── HEADER ── */
-    header {
-      background: var(--navy);
-      color: #fff;
-      height: var(--header-h);
-      display: flex;
-      align-items: center;
-      padding: 0 16px;
-      gap: 10px;
-      flex-shrink: 0;
-    }
-    header .back-btn {
-      background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 4px 8px 4px 0;
-    }
+    header { background: var(--navy); color: #fff; height: var(--header-h); display: flex; align-items: center; padding: 0 16px; gap: 10px; flex-shrink: 0; }
+    header .back-btn { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 4px 8px 4px 0; }
     header h1 { font-size: 17px; font-weight: 600; flex: 1; }
     header .group-name { font-size: 12px; color: var(--gold-light); }
 
-    /* ── SCROLLABLE BODY ── */
-    .scroll-body {
-      flex: 1;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      padding: 12px 16px;
-      padding-bottom: 24px;
-    }
+    .scroll-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 16px 24px; }
 
-    /* ── BOTTOM NAV ── */
-    .bottom-nav {
-      height: var(--tab-h);
-      background: var(--navy);
-      display: flex;
-      align-items: center;
-      justify-content: space-around;
-      flex-shrink: 0;
-      padding: 0 8px;
-      border-top: 1px solid rgba(255,255,255,0.08);
-    }
-    .nav-item {
-      display: flex; flex-direction: column; align-items: center; gap: 3px;
-      background: none; border: none; color: rgba(255,255,255,0.5);
-      font-size: 10px; cursor: pointer; padding: 8px 10px;
-      transition: color 0.15s;
-      flex: 1;
-    }
+    .bottom-nav { height: var(--tab-h); background: var(--navy); display: flex; align-items: center; justify-content: space-around; flex-shrink: 0; padding: 0 8px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none; color: rgba(255,255,255,0.5); font-size: 10px; cursor: pointer; padding: 8px 10px; flex: 1; }
     .nav-item .icon { font-size: 22px; line-height: 1; }
     .nav-item.active { color: var(--gold-light); }
-    .nav-pill {
-      background: var(--gold);
-      color: var(--navy);
-      border: none;
-      border-radius: 28px;
-      padding: 10px 18px;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      flex-shrink: 0;
-      line-height: 1.2;
-      text-align: center;
-    }
+    .nav-pill { background: var(--gold); color: var(--navy); border: none; border-radius: 28px; padding: 10px 18px; font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0; line-height: 1.2; text-align: center; }
 
-    /* ── CARDS ── */
-    .card {
-      background: var(--card-bg);
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 12px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
-    }
-
+    .card { background: var(--card-bg); border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
     .req-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .avatar {
-      width: 36px; height: 36px; border-radius: 50%;
-      background: var(--navy); color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 15px; font-weight: 700; flex-shrink: 0;
-    }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; }
     .req-meta { flex: 1; }
     .req-name { font-size: 14px; font-weight: 600; }
     .req-date { font-size: 11px; color: var(--muted); }
-    .req-body { font-size: 15px; line-height: 1.5; color: var(--text); }
-    .req-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+    .req-body { font-size: 15px; line-height: 1.5; }
+    .req-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; flex-wrap: wrap; gap: 8px; }
     .pray-count { font-size: 13px; color: var(--muted); }
-
     .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-    .btn {
-      padding: 8px 14px; border-radius: 20px; border: none;
-      font-size: 13px; font-weight: 600; cursor: pointer;
-    }
+    .btn { padding: 8px 14px; border-radius: 20px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
     .btn-pray { background: var(--navy); color: #fff; }
     .btn-word { background: var(--gold); color: var(--navy); }
     .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-prayed { background: #e6f4ea; color: #2d7a3a; }
 
-    /* ── SECTION LABEL ── */
     .section-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; margin: 4px 0 10px; }
 
-    /* ── MEMBERS ── */
-    .member-row {
-      display: flex; align-items: center; gap: 12px;
-      padding: 12px 0; border-bottom: 1px solid var(--border);
-      cursor: pointer;
-    }
+    .member-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
     .member-row:last-child { border-bottom: none; }
     .member-info { flex: 1; }
     .member-name { font-size: 15px; font-weight: 600; }
     .member-role { font-size: 12px; color: var(--gold); font-weight: 600; }
     .member-sub { font-size: 12px; color: var(--muted); }
-    .member-actions { display: flex; gap: 8px; }
     .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; }
 
-    /* ── ANSWERED ── */
-    .answered-card { opacity: 0.85; }
     .answered-badge { display: inline-block; background: #e6f4ea; color: #2d7a3a; font-size: 11px; font-weight: 700; border-radius: 10px; padding: 2px 8px; margin-bottom: 8px; }
 
-    /* ── POST REQUEST FORM ── */
     .form-group { margin-bottom: 16px; }
     .form-label { font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block; }
-    textarea, input[type=text], input[type=tel] {
-      width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
-      padding: 12px; font-size: 15px; font-family: inherit; background: #fff;
-      outline: none; resize: none;
-    }
+    textarea, input[type=text], input[type=tel], input[type=number] { width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 12px; font-size: 15px; font-family: inherit; background: #fff; outline: none; resize: none; }
     textarea:focus, input:focus { border-color: var(--navy); }
 
-    .btn-primary {
-      width: 100%; padding: 14px; background: var(--navy); color: #fff;
-      border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer;
-      margin-top: 4px;
-    }
-    .btn-gold {
-      width: 100%; padding: 14px; background: var(--gold); color: var(--navy);
-      border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer;
-    }
+    .btn-primary { width: 100%; padding: 14px; background: var(--navy); color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 4px; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-gold { width: 100%; padding: 14px; background: var(--gold); color: var(--navy); border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; }
 
-    /* ── JOIN / ONBOARDING ── */
-    .onboard-wrap { padding: 32px 24px; text-align: center; }
-    .onboard-logo { font-size: 28px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
-    .onboard-sub { font-size: 14px; color: var(--muted); margin-bottom: 32px; }
+    .onboard-wrap { padding: 32px 24px; }
+    .onboard-logo { font-size: 28px; font-weight: 800; color: var(--navy); margin-bottom: 4px; text-align: center; }
+    .onboard-sub { font-size: 14px; color: var(--muted); margin-bottom: 32px; text-align: center; }
     .onboard-wrap h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
     .onboard-wrap p { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
 
-    /* ── UPDATE BUBBLE ── */
-    .update-bubble {
-      background: var(--cream); border-radius: 10px; padding: 10px 12px;
-      font-size: 13px; color: var(--text); margin-top: 10px;
-      border-left: 3px solid var(--gold);
-    }
+    .update-bubble { background: var(--cream); border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-top: 10px; border-left: 3px solid var(--gold); }
     .update-bubble .upd-date { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
-    /* ── FLOATING ADD BTN ── */
-    .fab {
-      position: fixed; bottom: calc(var(--tab-h) + 16px); right: 16px;
-      width: 52px; height: 52px; border-radius: 50%;
-      background: var(--gold); color: var(--navy);
-      border: none; font-size: 26px; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.18); cursor: pointer;
-      z-index: 10;
-    }
+    .fab { position: fixed; bottom: calc(var(--tab-h) + 16px); right: 16px; width: 52px; height: 52px; border-radius: 50%; background: var(--gold); color: var(--navy); border: none; font-size: 26px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.18); cursor: pointer; z-index: 10; }
+
+    .loading { text-align: center; padding: 40px 0; color: var(--muted); font-size: 14px; }
+    .error-msg { background: #fee; border-radius: 10px; padding: 12px; color: #c00; font-size: 14px; margin-bottom: 12px; }
+
+    .otp-input { letter-spacing: 0.3em; font-size: 24px; text-align: center; }
+
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--muted); }
+    .empty-state .emoji { font-size: 40px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; line-height: 1.6; }
   </style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════
-     SCREEN: ONBOARDING / JOIN
-═══════════════════════════════════════════ -->
-<div class="screen active" id="screen-join">
+<!-- SCREEN: LOADING -->
+<div class="screen active" id="screen-loading">
+  <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;">
+    <div style="font-size:28px;font-weight:800;color:var(--navy);">Anchored In</div>
+    <div style="color:var(--muted);font-size:14px;">Loading...</div>
+  </div>
+</div>
+
+<!-- SCREEN: ENTER PHONE -->
+<div class="screen" id="screen-phone">
   <div class="scroll-body">
     <div class="onboard-wrap">
       <div class="onboard-logo">Anchored In</div>
       <div class="onboard-sub">Group</div>
-
-      <h2>Join or start a group</h2>
-      <p>Enter your group's invite code, or create a new group for your Bible study or church community.</p>
-
+      <h2>Welcome</h2>
+      <p>Enter your phone number to get started. We'll send a one-time code.</p>
+      <div id="phone-error" class="error-msg" style="display:none;"></div>
       <div class="form-group">
         <label class="form-label">Your name</label>
-        <input type="text" id="join-name" placeholder="First name or full name" />
+        <input type="text" id="input-name" placeholder="First name or full name" autocomplete="name" />
       </div>
       <div class="form-group">
         <label class="form-label">Phone number</label>
-        <input type="tel" id="join-phone" placeholder="+1 (555) 000-0000" />
+        <input type="tel" id="input-phone" placeholder="+1 (555) 000-0000" autocomplete="tel" />
       </div>
-      <div class="form-group">
-        <label class="form-label">Invite code (optional)</label>
-        <input type="text" id="join-code" placeholder="e.g. GRACE-24" style="letter-spacing:0.08em;" />
-      </div>
-
-      <button class="btn-primary" onclick="doJoin()">Continue</button>
-      <div style="margin: 16px 0; text-align:center; color:var(--muted); font-size:13px;">— or —</div>
-      <button class="btn-gold" onclick="doCreateGroup()">Start a new group</button>
+      <button class="btn-primary" id="btn-send-otp" onclick="sendOTP()">Send code</button>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════
-     SCREEN: MAIN APP (tabbed)
-═══════════════════════════════════════════ -->
+<!-- SCREEN: VERIFY OTP -->
+<div class="screen" id="screen-otp">
+  <div class="scroll-body">
+    <div class="onboard-wrap">
+      <div class="onboard-logo">Anchored In</div>
+      <div class="onboard-sub">Group</div>
+      <h2>Check your texts</h2>
+      <p id="otp-desc">Enter the 6-digit code we sent you.</p>
+      <div id="otp-error" class="error-msg" style="display:none;"></div>
+      <div class="form-group">
+        <label class="form-label">Code</label>
+        <input type="number" id="input-otp" class="otp-input" placeholder="000000" maxlength="6" />
+      </div>
+      <button class="btn-primary" id="btn-verify-otp" onclick="verifyOTP()">Verify</button>
+      <div style="margin-top:16px;text-align:center;">
+        <button class="btn btn-outline btn-sm" onclick="showScreen('screen-phone')">← Back</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN: JOIN OR CREATE GROUP -->
+<div class="screen" id="screen-group">
+  <div class="scroll-body">
+    <div class="onboard-wrap">
+      <div class="onboard-logo">Anchored In</div>
+      <div class="onboard-sub">Group</div>
+      <h2>Join a group</h2>
+      <p>Have an invite code? Enter it below. Or start a new group.</p>
+      <div id="group-error" class="error-msg" style="display:none;"></div>
+      <div class="form-group">
+        <label class="form-label">Invite code (optional)</label>
+        <input type="text" id="input-invite" placeholder="e.g. AB12CD" style="letter-spacing:0.1em;text-transform:uppercase;" />
+      </div>
+      <button class="btn-primary" onclick="joinGroup()">Join group</button>
+      <div style="margin: 16px 0; text-align:center; color:var(--muted); font-size:13px;">— or —</div>
+      <button class="btn-gold" onclick="showCreateGroup()">Start a new group</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN: CREATE GROUP -->
+<div class="screen" id="screen-create-group">
+  <header>
+    <button class="back-btn" onclick="showScreen('screen-group')">&#8592;</button>
+    <h1>New Group</h1>
+  </header>
+  <div class="scroll-body">
+    <div id="create-error" class="error-msg" style="display:none;"></div>
+    <div class="form-group">
+      <label class="form-label">Group name</label>
+      <input type="text" id="input-group-name" placeholder="e.g. Tuesday Morning Bible Study" />
+    </div>
+    <button class="btn-primary" onclick="createGroup()">Create group</button>
+  </div>
+</div>
+
+<!-- SCREEN: MAIN APP -->
 <div class="screen" id="screen-main">
 
-  <!-- TAB: REQUESTS FEED -->
+  <!-- TAB: REQUESTS -->
   <div id="tab-requests" class="tab-content" style="display:flex;flex-direction:column;flex:1;min-height:0;">
     <header>
       <div>
         <h1>Prayer Requests</h1>
-        <div class="group-name" id="group-name-label">Tuesday Morning Group</div>
+        <div class="group-name" id="group-name-label"></div>
       </div>
     </header>
     <div class="scroll-body" id="feed-scroll">
-
-      <div class="section-label">This week</div>
-
-      <!-- Request card -->
-      <div class="card">
-        <div class="req-header">
-          <div class="avatar">S</div>
-          <div class="req-meta">
-            <div class="req-name">Sarah M.</div>
-            <div class="req-date">2 hours ago</div>
-          </div>
-        </div>
-        <div class="req-body">My mom goes in for surgery Thursday. Just asking for peace and for the doctors' hands.</div>
-        <div class="update-bubble">
-          <strong>Update:</strong> Surgery went well — she's resting and doing okay. Thank you all so much. 🙏
-          <div class="upd-date">Yesterday</div>
-        </div>
-        <div class="req-footer">
-          <span class="pray-count">🤲 8 praying</span>
-          <div class="btn-row" style="margin-top:0;">
-            <button class="btn btn-pray btn-sm" onclick="markPraying(this)">🤲 I prayed</button>
-            <button class="btn btn-word btn-sm" onclick="prayTheWord()">Pray the Word</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="req-header">
-          <div class="avatar">J</div>
-          <div class="req-meta">
-            <div class="req-name">James T.</div>
-            <div class="req-date">Yesterday</div>
-          </div>
-        </div>
-        <div class="req-body">Job interview Friday at 2pm. Praying for clarity and confidence.</div>
-        <div class="req-footer">
-          <span class="pray-count">🤲 5 praying</span>
-          <div class="btn-row" style="margin-top:0;">
-            <button class="btn btn-pray btn-sm" onclick="markPraying(this)">🤲 I prayed</button>
-            <button class="btn btn-word btn-sm" onclick="prayTheWord()">Pray the Word</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="req-header">
-          <div class="avatar">M</div>
-          <div class="req-meta">
-            <div class="req-name">Michelle R.</div>
-            <div class="req-date">2 days ago</div>
-          </div>
-        </div>
-        <div class="req-body">My son is really struggling right now — school, friendships, just a lot. Asking for wisdom on how to support him.</div>
-        <div class="req-footer">
-          <span class="pray-count">🤲 11 praying</span>
-          <div class="btn-row" style="margin-top:0;">
-            <button class="btn btn-pray btn-sm" onclick="markPraying(this)">🤲 I prayed</button>
-            <button class="btn btn-word btn-sm" onclick="prayTheWord()">Pray the Word</button>
-          </div>
-        </div>
-      </div>
-
+      <div class="loading" id="feed-loading">Loading requests...</div>
+      <div id="feed-list"></div>
     </div>
-
-    <!-- FAB: post request -->
-    <button class="fab" onclick="goToPost()" title="Post a request">+</button>
+    <button class="fab" onclick="goToPost()">+</button>
   </div>
 
   <!-- TAB: MINE -->
   <div id="tab-mine" class="tab-content" style="display:none;flex-direction:column;flex:1;min-height:0;">
-    <header>
-      <h1>My Requests</h1>
-    </header>
+    <header><h1>My Requests</h1></header>
     <div class="scroll-body">
-
-      <div class="section-label">Active</div>
-
-      <div class="card">
-        <div class="req-body">My mom goes in for surgery Thursday. Just asking for peace and for the doctors' hands.</div>
-        <div class="update-bubble">
-          <strong>Update:</strong> Surgery went well — she's resting and doing okay. Thank you all so much. 🙏
-          <div class="upd-date">Yesterday</div>
-        </div>
-        <div class="req-footer">
-          <span class="pray-count">🤲 8 praying</span>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-outline btn-sm" onclick="showUpdateForm()">+ Add update</button>
-          <button class="btn btn-word btn-sm" onclick="goToJourney()">Take the journey</button>
-          <button class="btn btn-outline btn-sm" onclick="markAnswered()">✓ Answered</button>
-        </div>
-      </div>
-
-      <div style="text-align:center; padding: 24px 0;">
-        <button class="btn-primary" style="max-width:260px; margin: 0 auto; display:block;" onclick="goToPost()">+ Post a new request</button>
+      <div class="loading" id="mine-loading">Loading...</div>
+      <div id="mine-list"></div>
+      <div style="text-align:center;padding:16px 0;">
+        <button class="btn-primary" style="max-width:260px;margin:0 auto;display:block;" onclick="goToPost()">+ Post a new request</button>
       </div>
     </div>
   </div>
 
   <!-- TAB: MEMBERS -->
   <div id="tab-members" class="tab-content" style="display:none;flex-direction:column;flex:1;min-height:0;">
-    <header>
-      <h1>Members</h1>
-    </header>
+    <header><h1>Members</h1></header>
     <div class="scroll-body">
-
-      <div class="section-label">Leaders</div>
-      <div class="card" style="padding: 8px 16px;">
-        <div class="member-row" onclick="showMemberDetail('Sarah M.', true)">
-          <div class="avatar">S</div>
-          <div class="member-info">
-            <div class="member-name">Sarah M. <span class="member-role">Leader</span></div>
-            <div class="member-sub">1 active request</div>
-          </div>
-          <div class="member-actions">
-            <button class="icon-btn" onclick="event.stopPropagation(); textMember('+15550001')" title="Text">💬</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="section-label">Members</div>
-      <div class="card" style="padding: 8px 16px;">
-        <div class="member-row" onclick="showMemberDetail('James T.', false)">
-          <div class="avatar">J</div>
-          <div class="member-info">
-            <div class="member-name">James T.</div>
-            <div class="member-sub">1 active request</div>
-          </div>
-          <div class="member-actions">
-            <button class="icon-btn" onclick="event.stopPropagation(); textMember('+15550002')" title="Text">💬</button>
-          </div>
-        </div>
-        <div class="member-row" onclick="showMemberDetail('Michelle R.', false)">
-          <div class="avatar">M</div>
-          <div class="member-info">
-            <div class="member-name">Michelle R.</div>
-            <div class="member-sub">1 active request</div>
-          </div>
-          <div class="member-actions">
-            <button class="icon-btn" onclick="event.stopPropagation(); textMember('+15550003')" title="Text">💬</button>
-          </div>
-        </div>
-        <div class="member-row" onclick="showMemberDetail('You', false)">
-          <div class="avatar" style="background:var(--gold);color:var(--navy);">A</div>
-          <div class="member-info">
-            <div class="member-name">You</div>
-            <div class="member-sub">1 active request</div>
-          </div>
-        </div>
-      </div>
-
-      <div style="text-align:center; padding: 8px 0 24px;">
+      <div class="loading" id="members-loading">Loading...</div>
+      <div id="members-list"></div>
+      <div style="text-align:center;padding:8px 0 24px;">
         <button class="btn btn-outline" onclick="inviteMember()">+ Invite someone</button>
       </div>
     </div>
@@ -396,255 +222,569 @@
 
   <!-- TAB: ANSWERED -->
   <div id="tab-answered" class="tab-content" style="display:none;flex-direction:column;flex:1;min-height:0;">
-    <header>
-      <h1>Answered 🙌</h1>
-    </header>
+    <header><h1>Answered 🙌</h1></header>
     <div class="scroll-body">
-      <div class="section-label">Praise reports</div>
-
-      <div class="card answered-card">
-        <span class="answered-badge">✓ Answered</span>
-        <div class="req-header">
-          <div class="avatar">L</div>
-          <div class="req-meta">
-            <div class="req-name">Lisa K.</div>
-            <div class="req-date">3 weeks ago</div>
-          </div>
-        </div>
-        <div class="req-body">Praying for the house to sell — we had an offer fall through twice.</div>
-        <div class="update-bubble">
-          <strong>Praise report:</strong> We closed on Friday!! God is so faithful. Thank you for every prayer.
-          <div class="upd-date">2 weeks ago</div>
-        </div>
-      </div>
-
-      <div class="card answered-card">
-        <span class="answered-badge">✓ Answered</span>
-        <div class="req-header">
-          <div class="avatar">J</div>
-          <div class="req-meta">
-            <div class="req-name">James T.</div>
-            <div class="req-date">1 month ago</div>
-          </div>
-        </div>
-        <div class="req-body">Job interview Friday at 2pm. Praying for clarity and confidence.</div>
-        <div class="update-bubble">
-          <strong>Praise report:</strong> I got the job! Starting in two weeks.
-          <div class="upd-date">3 weeks ago</div>
-        </div>
-      </div>
-
+      <div class="loading" id="answered-loading">Loading...</div>
+      <div id="answered-list"></div>
     </div>
   </div>
 
-  <!-- BOTTOM NAV (shared) -->
   <nav class="bottom-nav">
-    <button class="nav-item active" id="nav-requests" onclick="switchTab('requests')">
-      <span class="icon">🙏</span>Requests
-    </button>
-    <button class="nav-item" id="nav-mine" onclick="switchTab('mine')">
-      <span class="icon">👤</span>Mine
-    </button>
+    <button class="nav-item active" id="nav-requests" onclick="switchTab('requests')"><span class="icon">🙏</span>Requests</button>
+    <button class="nav-item" id="nav-mine" onclick="switchTab('mine')"><span class="icon">👤</span>Mine</button>
     <button class="nav-pill" onclick="textGroup()">Text<br>Group</button>
-    <button class="nav-item" id="nav-members" onclick="switchTab('members')">
-      <span class="icon">👥</span>Members
-    </button>
-    <button class="nav-item" id="nav-answered" onclick="switchTab('answered')">
-      <span class="icon">🙌</span>Answered
-    </button>
+    <button class="nav-item" id="nav-members" onclick="switchTab('members')"><span class="icon">👥</span>Members</button>
+    <button class="nav-item" id="nav-answered" onclick="switchTab('answered')"><span class="icon">🙌</span>Answered</button>
   </nav>
 </div>
 
-<!-- ═══════════════════════════════════════════
-     SCREEN: POST A REQUEST
-═══════════════════════════════════════════ -->
+<!-- SCREEN: POST REQUEST -->
 <div class="screen" id="screen-post">
   <header>
-    <button class="back-btn" onclick="goBack('screen-main')">&#8592;</button>
+    <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
     <h1>Post a Request</h1>
   </header>
   <div class="scroll-body">
+    <div id="post-error" class="error-msg" style="display:none;"></div>
     <div class="form-group">
       <label class="form-label">What would you like prayer for?</label>
-      <textarea id="post-text" rows="5" placeholder="Share what's on your heart..."></textarea>
+      <textarea id="post-text" rows="6" placeholder="Share what's on your heart..."></textarea>
     </div>
-    <div style="font-size:13px; color:var(--muted); margin-bottom:20px;">
-      This will be visible to everyone in your group.
-    </div>
-    <button class="btn-primary" onclick="submitRequest()">Post to Group</button>
-    <div style="margin: 14px 0; text-align:center; color:var(--muted); font-size:13px;">After posting you can:</div>
-    <button class="btn-gold" onclick="submitThenJourney('identity')">Post + Take the Truth Journey</button>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">This will be visible to everyone in your group.</div>
+    <button class="btn-primary" id="btn-post" onclick="submitRequest(null)">Post to Group</button>
+    <div style="margin:14px 0;text-align:center;color:var(--muted);font-size:13px;">After posting you can also:</div>
+    <button class="btn-gold" onclick="submitRequest('identity')">Post + Take the Truth Journey</button>
     <div style="height:10px;"></div>
-    <button class="btn btn-outline" style="width:100%;padding:13px;border-radius:12px;font-size:15px;" onclick="submitThenJourney('renew')">Post + Renew My Mind (quick)</button>
+    <button class="btn btn-outline" style="width:100%;padding:13px;border-radius:12px;font-size:15px;" onclick="submitRequest('renew')">Post + Renew My Mind (quick)</button>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════
-     SCREEN: MEMBER DETAIL
-═══════════════════════════════════════════ -->
+<!-- SCREEN: ADD UPDATE -->
+<div class="screen" id="screen-update">
+  <header>
+    <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
+    <h1>Add Update</h1>
+  </header>
+  <div class="scroll-body">
+    <div id="update-error" class="error-msg" style="display:none;"></div>
+    <div class="form-group">
+      <label class="form-label">What's the update?</label>
+      <textarea id="update-text" rows="5" placeholder="Share how things are going..."></textarea>
+    </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+      <input type="checkbox" id="update-is-praise" style="width:auto;" />
+      <label for="update-is-praise" style="font-size:14px;cursor:pointer;">This is a praise report 🙌</label>
+    </div>
+    <button class="btn-primary" onclick="submitUpdate()">Post Update</button>
+  </div>
+</div>
+
+<!-- SCREEN: MEMBER DETAIL -->
 <div class="screen" id="screen-member">
   <header>
-    <button class="back-btn" onclick="goBack('screen-main')">&#8592;</button>
-    <h1 id="member-detail-name">Sarah M.</h1>
+    <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
+    <h1 id="member-detail-name"></h1>
   </header>
-  <div class="scroll-body" id="member-detail-body">
-    <!-- populated dynamically -->
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════
-     SCREEN: PRAY THE WORD (stub)
-═══════════════════════════════════════════ -->
-<div class="screen" id="screen-pray-word">
-  <header>
-    <button class="back-btn" onclick="goBack('screen-main')">&#8592;</button>
-    <h1>Pray the Word</h1>
-  </header>
-  <div class="scroll-body" style="text-align:center; padding-top:40px;">
-    <div style="font-size:48px; margin-bottom:16px;">🕊️</div>
-    <p style="font-size:15px; color:var(--muted); line-height:1.6; max-width:300px; margin:0 auto;">
-      Scripture-based prayer for this request coming soon — powered by the same engine as Anchored In.
-    </p>
-    <div style="margin-top:32px; background:var(--card-bg); border-radius:14px; padding:20px; text-align:left;">
-      <div style="font-size:13px; font-weight:700; color:var(--muted); margin-bottom:8px;">SAMPLE</div>
-      <p style="font-size:15px; line-height:1.7; font-style:italic; color:var(--text);">
-        "Lord, Your Word says You are close to the brokenhearted and save those who are crushed in spirit (Psalm 34:18). We bring Sarah's mom before You right now. We ask for Your peace that surpasses understanding to guard their hearts and minds..."
-      </p>
-    </div>
-  </div>
+  <div class="scroll-body" id="member-detail-body"></div>
 </div>
 
 <script>
-// ── STATE ──
-var _currentScreen = 'screen-join';
+// ── GLOBALS ──
+var _sb = null;
+var _user = null;
+var _profile = null;
+var _group = null;
+var _membership = null;
 var _currentTab = 'requests';
-var _groupName = 'Tuesday Morning Group';
+var _editingRequestId = null;
 
-// ── NAVIGATION ──
+// ── INIT ──
+async function init() {
+  try {
+    var res = await fetch('/api/config');
+    var cfg = await res.json();
+    _sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+
+    var { data: { session } } = await _sb.auth.getSession();
+    if (session) {
+      _user = session.user;
+      await loadUserContext();
+    } else {
+      showScreen('screen-phone');
+    }
+  } catch (e) {
+    showScreen('screen-phone');
+  }
+}
+
+async function loadUserContext() {
+  var { data: profile } = await _sb.from('profiles').select('*').eq('id', _user.id).single();
+  _profile = profile;
+
+  if (!profile) {
+    showScreen('screen-phone');
+    return;
+  }
+
+  var { data: membership } = await _sb
+    .from('members')
+    .select('*, groups(*)')
+    .eq('user_id', _user.id)
+    .order('joined_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (membership) {
+    _membership = membership;
+    _group = membership.groups;
+    enterApp();
+  } else {
+    showScreen('screen-group');
+  }
+}
+
+// ── AUTH ──
+async function sendOTP() {
+  var name = document.getElementById('input-name').value.trim();
+  var phone = document.getElementById('input-phone').value.trim().replace(/\s/g, '');
+  var errEl = document.getElementById('phone-error');
+  errEl.style.display = 'none';
+
+  if (!name) { showErr(errEl, 'Please enter your name.'); return; }
+  if (!phone) { showErr(errEl, 'Please enter your phone number.'); return; }
+
+  var btn = document.getElementById('btn-send-otp');
+  btn.disabled = true; btn.textContent = 'Sending...';
+
+  var { error } = await _sb.auth.signInWithOtp({ phone });
+  btn.disabled = false; btn.textContent = 'Send code';
+
+  if (error) { showErr(errEl, error.message); return; }
+
+  localStorage.setItem('pending_name', name);
+  localStorage.setItem('pending_phone', phone);
+  document.getElementById('otp-desc').textContent = 'Enter the 6-digit code we sent to ' + phone;
+  showScreen('screen-otp');
+}
+
+async function verifyOTP() {
+  var phone = localStorage.getItem('pending_phone');
+  var name = localStorage.getItem('pending_name');
+  var token = document.getElementById('input-otp').value.trim();
+  var errEl = document.getElementById('otp-error');
+  errEl.style.display = 'none';
+
+  if (!token || token.length < 6) { showErr(errEl, 'Enter the 6-digit code.'); return; }
+
+  var btn = document.getElementById('btn-verify-otp');
+  btn.disabled = true; btn.textContent = 'Verifying...';
+
+  var { data, error } = await _sb.auth.verifyOtp({ phone, token, type: 'sms' });
+  btn.disabled = false; btn.textContent = 'Verify';
+
+  if (error) { showErr(errEl, error.message); return; }
+
+  _user = data.user;
+
+  // Upsert profile
+  await _sb.from('profiles').upsert({ id: _user.id, name, phone });
+  var { data: profile } = await _sb.from('profiles').select('*').eq('id', _user.id).single();
+  _profile = profile;
+
+  // Check if already in a group
+  var { data: membership } = await _sb
+    .from('members').select('*, groups(*)').eq('user_id', _user.id)
+    .order('joined_at', { ascending: false }).limit(1).single();
+
+  if (membership) {
+    _membership = membership; _group = membership.groups;
+    enterApp();
+  } else {
+    showScreen('screen-group');
+  }
+}
+
+// ── GROUP JOIN/CREATE ──
+async function joinGroup() {
+  var code = document.getElementById('input-invite').value.trim().toUpperCase();
+  var errEl = document.getElementById('group-error');
+  errEl.style.display = 'none';
+
+  if (!code) { showErr(errEl, 'Enter an invite code to join a group.'); return; }
+
+  var { data: group, error } = await _sb.from('groups').select('*').eq('invite_code', code).single();
+  if (error || !group) { showErr(errEl, 'Group not found. Check the code and try again.'); return; }
+
+  await _sb.from('members').upsert({ group_id: group.id, user_id: _user.id, role: 'member' });
+  _group = group;
+  var { data: mem } = await _sb.from('members').select('*').eq('group_id', group.id).eq('user_id', _user.id).single();
+  _membership = mem;
+  enterApp();
+}
+
+function showCreateGroup() { showScreen('screen-create-group'); }
+
+async function createGroup() {
+  var name = document.getElementById('input-group-name').value.trim();
+  var errEl = document.getElementById('create-error');
+  errEl.style.display = 'none';
+
+  if (!name) { showErr(errEl, 'Please enter a group name.'); return; }
+
+  var { data: codeData } = await _sb.rpc('generate_invite_code');
+  var code = codeData;
+
+  var { data: group, error } = await _sb.from('groups').insert({ name, invite_code: code, created_by: _user.id }).select().single();
+  if (error) { showErr(errEl, error.message); return; }
+
+  await _sb.from('members').insert({ group_id: group.id, user_id: _user.id, role: 'leader' });
+  _group = group;
+  var { data: mem } = await _sb.from('members').select('*').eq('group_id', group.id).eq('user_id', _user.id).single();
+  _membership = mem;
+  enterApp();
+}
+
+// ── ENTER APP ──
+function enterApp() {
+  document.getElementById('group-name-label').textContent = _group.name;
+  showScreen('screen-main');
+  switchTab('requests');
+}
+
+// ── FEED ──
+async function loadFeed() {
+  document.getElementById('feed-loading').style.display = 'block';
+  document.getElementById('feed-list').innerHTML = '';
+
+  var { data: requests } = await _sb
+    .from('requests')
+    .select('*, profiles(name), request_updates(*), acknowledgments(*)')
+    .eq('group_id', _group.id)
+    .eq('is_answered', false)
+    .order('created_at', { ascending: false });
+
+  document.getElementById('feed-loading').style.display = 'none';
+
+  if (!requests || requests.length === 0) {
+    document.getElementById('feed-list').innerHTML = '<div class="empty-state"><div class="emoji">🙏</div><p>No requests yet.<br>Be the first to share something.</p></div>';
+    return;
+  }
+
+  document.getElementById('feed-list').innerHTML = requests.map(function(r) { return renderRequestCard(r, false); }).join('');
+}
+
+async function loadMine() {
+  document.getElementById('mine-loading').style.display = 'block';
+  document.getElementById('mine-list').innerHTML = '';
+
+  var { data: requests } = await _sb
+    .from('requests')
+    .select('*, request_updates(*), acknowledgments(*)')
+    .eq('group_id', _group.id)
+    .eq('user_id', _user.id)
+    .eq('is_answered', false)
+    .order('created_at', { ascending: false });
+
+  document.getElementById('mine-loading').style.display = 'none';
+
+  if (!requests || requests.length === 0) {
+    document.getElementById('mine-list').innerHTML = '<div class="empty-state"><div class="emoji">✍️</div><p>You haven\'t posted any requests yet.</p></div>';
+    return;
+  }
+
+  document.getElementById('mine-list').innerHTML = requests.map(function(r) { return renderRequestCard(r, true); }).join('');
+}
+
+async function loadMembers() {
+  document.getElementById('members-loading').style.display = 'block';
+  document.getElementById('members-list').innerHTML = '';
+
+  var { data: members } = await _sb
+    .from('members')
+    .select('*, profiles(*)')
+    .eq('group_id', _group.id)
+    .order('role');
+
+  document.getElementById('members-loading').style.display = 'none';
+
+  var leaders = (members || []).filter(function(m) { return m.role === 'leader'; });
+  var regular = (members || []).filter(function(m) { return m.role === 'member'; });
+
+  var html = '';
+  if (leaders.length) {
+    html += '<div class="section-label">Leaders</div><div class="card" style="padding:8px 16px;">';
+    html += leaders.map(function(m) { return renderMemberRow(m); }).join('');
+    html += '</div>';
+  }
+  if (regular.length) {
+    html += '<div class="section-label">Members</div><div class="card" style="padding:8px 16px;">';
+    html += regular.map(function(m) { return renderMemberRow(m); }).join('');
+    html += '</div>';
+  }
+
+  // Show invite code
+  html += '<div class="card" style="text-align:center;">' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Invite code</div>' +
+    '<div style="font-size:24px;font-weight:800;letter-spacing:0.15em;color:var(--navy);">' + _group.invite_code + '</div>' +
+    '<div style="font-size:12px;color:var(--muted);margin-top:4px;">Share this to add someone</div>' +
+    '</div>';
+
+  document.getElementById('members-list').innerHTML = html;
+}
+
+async function loadAnswered() {
+  document.getElementById('answered-loading').style.display = 'block';
+  document.getElementById('answered-list').innerHTML = '';
+
+  var { data: requests } = await _sb
+    .from('requests')
+    .select('*, profiles(name), request_updates(*)')
+    .eq('group_id', _group.id)
+    .eq('is_answered', true)
+    .order('updated_at', { ascending: false });
+
+  document.getElementById('answered-loading').style.display = 'none';
+
+  if (!requests || requests.length === 0) {
+    document.getElementById('answered-list').innerHTML = '<div class="empty-state"><div class="emoji">🙌</div><p>Answered prayers will appear here.<br>Keep praying!</p></div>';
+    return;
+  }
+
+  document.getElementById('answered-list').innerHTML = requests.map(function(r) {
+    var acks = r.acknowledgments || [];
+    var updates = (r.request_updates || []).sort(function(a,b) { return new Date(b.created_at) - new Date(a.created_at); });
+    var latestUpdate = updates[0];
+    return '<div class="card">' +
+      '<span class="answered-badge">✓ Answered</span>' +
+      '<div class="req-header"><div class="avatar">' + initials(r.profiles ? r.profiles.name : '?') + '</div>' +
+      '<div class="req-meta"><div class="req-name">' + esc(r.profiles ? r.profiles.name : 'Unknown') + '</div>' +
+      '<div class="req-date">' + timeAgo(r.created_at) + '</div></div></div>' +
+      '<div class="req-body">' + esc(r.body) + '</div>' +
+      (latestUpdate ? '<div class="update-bubble"><strong>' + (latestUpdate.is_praise ? 'Praise report' : 'Update') + ':</strong> ' + esc(latestUpdate.body) + '<div class="upd-date">' + timeAgo(latestUpdate.created_at) + '</div></div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+// ── RENDER HELPERS ──
+function renderRequestCard(r, isOwner) {
+  var acks = r.acknowledgments || [];
+  var hasPrayed = acks.some(function(a) { return a.user_id === _user.id; });
+  var updates = (r.request_updates || []).sort(function(a,b) { return new Date(b.created_at) - new Date(a.created_at); });
+  var latestUpdate = updates[0];
+  var name = isOwner ? 'You' : (r.profiles ? r.profiles.name : 'Unknown');
+
+  return '<div class="card" id="req-' + r.id + '">' +
+    '<div class="req-header">' +
+    '<div class="avatar" style="' + (isOwner ? 'background:var(--gold);color:var(--navy);' : '') + '">' + initials(name) + '</div>' +
+    '<div class="req-meta"><div class="req-name">' + esc(name) + '</div><div class="req-date">' + timeAgo(r.created_at) + '</div></div>' +
+    '</div>' +
+    '<div class="req-body">' + esc(r.body) + '</div>' +
+    (latestUpdate ? '<div class="update-bubble"><strong>' + (latestUpdate.is_praise ? 'Praise:' : 'Update:') + '</strong> ' + esc(latestUpdate.body) + '<div class="upd-date">' + timeAgo(latestUpdate.created_at) + '</div></div>' : '') +
+    '<div class="req-footer">' +
+    '<span class="pray-count" id="ack-count-' + r.id + '">🤲 ' + acks.length + ' praying</span>' +
+    '<div class="btn-row" style="margin-top:0;">' +
+    (hasPrayed
+      ? '<button class="btn btn-pray btn-sm btn-prayed" disabled>🤲 Praying</button>'
+      : '<button class="btn btn-pray btn-sm" onclick="markPraying(\'' + r.id + '\', this)">🤲 I prayed</button>') +
+    '</div>' +
+    '</div>' +
+    (isOwner
+      ? '<div class="btn-row">' +
+        '<button class="btn btn-outline btn-sm" onclick="openUpdateForm(\'' + r.id + '\')">+ Update</button>' +
+        '<button class="btn btn-word btn-sm" onclick="goToJourney()">Take journey</button>' +
+        '<button class="btn btn-outline btn-sm" onclick="markAnswered(\'' + r.id + '\')">✓ Answered</button>' +
+        '</div>'
+      : '') +
+    '</div>';
+}
+
+function renderMemberRow(m) {
+  var isMe = m.user_id === _user.id;
+  var name = m.profiles ? m.profiles.name : 'Unknown';
+  var isLeader = _membership && _membership.role === 'leader';
+  return '<div class="member-row" onclick="showMemberDetail(\'' + esc(name) + '\', \'' + m.user_id + '\', \'' + m.role + '\')">' +
+    '<div class="avatar" style="' + (isMe ? 'background:var(--gold);color:var(--navy);' : '') + '">' + initials(name) + '</div>' +
+    '<div class="member-info">' +
+    '<div class="member-name">' + esc(name) + (isMe ? ' <span style="color:var(--muted);font-weight:400;">(you)</span>' : '') + '</div>' +
+    (m.role === 'leader' ? '<div class="member-role">Leader</div>' : '') +
+    '</div>' +
+    (!isMe ? '<div class="member-actions"><button class="icon-btn" onclick="event.stopPropagation();textMember(\'' + (m.profiles ? m.profiles.phone : '') + '\')" title="Text">💬</button></div>' : '') +
+    '</div>';
+}
+
+// ── ACTIONS ──
+async function markPraying(requestId, btn) {
+  btn.disabled = true; btn.textContent = '...';
+  var { error } = await _sb.from('acknowledgments').insert({ request_id: requestId, user_id: _user.id });
+  if (!error) {
+    btn.textContent = '🤲 Praying';
+    btn.className = 'btn btn-pray btn-sm btn-prayed';
+    var countEl = document.getElementById('ack-count-' + requestId);
+    if (countEl) {
+      var cur = parseInt(countEl.textContent.replace(/\D/g, '')) || 0;
+      countEl.textContent = '🤲 ' + (cur + 1) + ' praying';
+    }
+  } else {
+    btn.disabled = false; btn.textContent = '🤲 I prayed';
+  }
+}
+
+function goToPost() { showScreen('screen-post'); }
+
+async function submitRequest(journey) {
+  var text = document.getElementById('post-text').value.trim();
+  var errEl = document.getElementById('post-error');
+  errEl.style.display = 'none';
+  if (!text) { showErr(errEl, 'Please write your request first.'); return; }
+
+  var btn = document.getElementById('btn-post');
+  btn.disabled = true; btn.textContent = 'Posting...';
+
+  var { error } = await _sb.from('requests').insert({ group_id: _group.id, user_id: _user.id, body: text });
+  btn.disabled = false; btn.textContent = 'Post to Group';
+
+  if (error) { showErr(errEl, error.message); return; }
+
+  document.getElementById('post-text').value = '';
+
+  if (journey === 'identity') { window.open('https://anchoredin.app/identity.html', '_blank'); }
+  else if (journey === 'renew') { window.open('https://anchoredin.app/renew.html', '_blank'); }
+
+  showScreen('screen-main');
+  switchTab('mine');
+}
+
+function openUpdateForm(requestId) {
+  _editingRequestId = requestId;
+  document.getElementById('update-text').value = '';
+  document.getElementById('update-is-praise').checked = false;
+  showScreen('screen-update');
+}
+
+async function submitUpdate() {
+  var text = document.getElementById('update-text').value.trim();
+  var isPraise = document.getElementById('update-is-praise').checked;
+  var errEl = document.getElementById('update-error');
+  errEl.style.display = 'none';
+  if (!text) { showErr(errEl, 'Please write an update.'); return; }
+
+  await _sb.from('request_updates').insert({ request_id: _editingRequestId, user_id: _user.id, body: text, is_praise: isPraise });
+  showScreen('screen-main');
+  switchTab('mine');
+}
+
+async function markAnswered(requestId) {
+  if (!confirm('Mark this as answered? It will move to the Answered tab.')) return;
+  await _sb.from('requests').update({ is_answered: true }).eq('id', requestId);
+  switchTab('answered');
+}
+
+function goToJourney() {
+  if (confirm('Open the Anchored In truth journey in a new tab?')) {
+    window.open('https://anchoredin.app/identity.html', '_blank');
+  }
+}
+
+async function showMemberDetail(name, userId, role) {
+  document.getElementById('member-detail-name').textContent = name;
+  var isLeader = _membership && _membership.role === 'leader';
+  var isMe = userId === _user.id;
+
+  var { data: requests } = await _sb
+    .from('requests')
+    .select('*, acknowledgments(*)')
+    .eq('group_id', _group.id)
+    .eq('user_id', userId)
+    .eq('is_answered', false);
+
+  var html = '<div class="section-label">Active Requests</div>';
+  if (!requests || requests.length === 0) {
+    html += '<div class="empty-state" style="padding:24px 0;"><p>No active requests.</p></div>';
+  } else {
+    html += requests.map(function(r) {
+      var acks = r.acknowledgments || [];
+      var hasPrayed = acks.some(function(a) { return a.user_id === _user.id; });
+      return '<div class="card"><div class="req-body">' + esc(r.body) + '</div>' +
+        '<div class="req-footer"><span class="pray-count">🤲 ' + acks.length + ' praying</span>' +
+        (!hasPrayed ? '<button class="btn btn-pray btn-sm" onclick="markPraying(\'' + r.id + '\', this)">🤲 I prayed</button>' : '<button class="btn btn-pray btn-sm btn-prayed" disabled>🤲 Praying</button>') +
+        '</div></div>';
+    }).join('');
+  }
+
+  if (isLeader && !isMe) {
+    html += '<div style="margin-top:16px;">' +
+      (role === 'member'
+        ? '<button class="btn btn-outline" onclick="promoteLeader(\'' + userId + '\')">Make leader</button>'
+        : '<button class="btn btn-outline" onclick="demoteLeader(\'' + userId + '\')">Remove leader</button>') +
+      '</div>';
+  }
+
+  document.getElementById('member-detail-body').innerHTML = html;
+  showScreen('screen-member');
+}
+
+async function promoteLeader(userId) {
+  if (!confirm('Make this person a leader?')) return;
+  await _sb.from('members').update({ role: 'leader' }).eq('group_id', _group.id).eq('user_id', userId);
+  showScreen('screen-main'); switchTab('members');
+}
+
+async function demoteLeader(userId) {
+  if (!confirm('Remove leader role?')) return;
+  await _sb.from('members').update({ role: 'member' }).eq('group_id', _group.id).eq('user_id', userId);
+  showScreen('screen-main'); switchTab('members');
+}
+
+function textMember(phone) { if (phone) window.open('sms:' + phone); }
+
+function textGroup() {
+  window.open('sms:?&body=' + encodeURIComponent('Hey ' + _group.name + ' — checking in! https://group.anchoredin.app'));
+}
+
+function inviteMember() {
+  var msg = 'Join our prayer group on Anchored In! Code: ' + _group.invite_code + '\nhttps://group.anchoredin.app';
+  if (navigator.share) {
+    navigator.share({ title: 'Join ' + _group.name, text: msg }).catch(function() {});
+  } else {
+    window.open('sms:?&body=' + encodeURIComponent(msg));
+  }
+}
+
+// ── NAV ──
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
   document.getElementById(id).classList.add('active');
-  _currentScreen = id;
 }
 
-function goBack(to) {
-  showScreen(to || 'screen-main');
-}
-
-// ── TABS ──
 function switchTab(tab) {
   _currentTab = tab;
   document.querySelectorAll('.tab-content').forEach(function(t) { t.style.display = 'none'; });
   var el = document.getElementById('tab-' + tab);
   if (el) { el.style.display = 'flex'; el.style.flexDirection = 'column'; el.style.flex = '1'; el.style.minHeight = '0'; }
-
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
   var nav = document.getElementById('nav-' + tab);
   if (nav) nav.classList.add('active');
+
+  if (tab === 'requests') loadFeed();
+  else if (tab === 'mine') loadMine();
+  else if (tab === 'members') loadMembers();
+  else if (tab === 'answered') loadAnswered();
 }
 
-// ── ONBOARDING ──
-function doJoin() {
-  var name = document.getElementById('join-name').value.trim();
-  if (!name) { alert('Please enter your name.'); return; }
-  showScreen('screen-main');
-  switchTab('requests');
+// ── UTILS ──
+function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+function initials(name) { return (name || '?').split(' ').map(function(w) { return w[0]; }).join('').toUpperCase().substring(0, 2); }
+function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function timeAgo(ts) {
+  var diff = (Date.now() - new Date(ts)) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+  return new Date(ts).toLocaleDateString();
 }
 
-function doCreateGroup() {
-  var name = document.getElementById('join-name').value.trim();
-  if (!name) { alert('Please enter your name first.'); return; }
-  var groupName = prompt('What would you like to name your group?', 'My Bible Study');
-  if (groupName) _groupName = groupName;
-  document.getElementById('group-name-label').textContent = _groupName;
-  showScreen('screen-main');
-  switchTab('requests');
-}
-
-// ── REQUEST ACTIONS ──
-function markPraying(btn) {
-  btn.textContent = '🤲 Praying';
-  btn.style.background = '#e6f4ea';
-  btn.style.color = '#2d7a3a';
-  btn.disabled = true;
-}
-
-function prayTheWord() {
-  showScreen('screen-pray-word');
-}
-
-function goToPost() {
-  showScreen('screen-post');
-}
-
-function submitRequest() {
-  var text = document.getElementById('post-text').value.trim();
-  if (!text) { alert('Please write your request first.'); return; }
-  goBack('screen-main');
-  switchTab('mine');
-}
-
-function submitThenJourney(type) {
-  var text = document.getElementById('post-text').value.trim();
-  if (!text) { alert('Please write your request first.'); return; }
-  if (type === 'identity') {
-    window.open('https://anchoredin.app/identity.html', '_blank');
-  } else {
-    window.open('https://anchoredin.app/renew.html', '_blank');
-  }
-  goBack('screen-main');
-  switchTab('mine');
-}
-
-function showUpdateForm() {
-  var upd = prompt('What update would you like to share?');
-  if (upd) alert('Update posted!');
-}
-
-function markAnswered() {
-  if (confirm('Mark this request as answered? It will move to the Answered tab.')) {
-    switchTab('answered');
-  }
-}
-
-function goToJourney() {
-  if (confirm('This will open the Anchored In truth journey in a new tab. Continue?')) {
-    window.open('https://anchoredin.app/identity.html', '_blank');
-  }
-}
-
-// ── MEMBERS ──
-function showMemberDetail(name, isLeader) {
-  document.getElementById('member-detail-name').textContent = name;
-  var body = document.getElementById('member-detail-body');
-  body.innerHTML = '<div class="section-label">Active Requests</div>' +
-    '<div class="card"><div class="req-body">Placeholder request for ' + name + '.</div>' +
-    '<div class="btn-row"><button class="btn btn-pray btn-sm" onclick="markPraying(this)">🤲 I prayed</button>' +
-    '<button class="btn btn-word btn-sm" onclick="prayTheWord()">Pray the Word</button></div></div>' +
-    (isLeader ? '' : '<div style="margin-top:16px;"><button class="btn btn-outline" onclick="promoteLeader(\'' + name + '\')">Make leader</button></div>');
-  showScreen('screen-member');
-}
-
-function promoteLeader(name) {
-  alert(name + ' is now a leader.');
-}
-
-function textMember(phone) {
-  window.open('sms:' + phone);
-}
-
-function inviteMember() {
-  var code = _groupName.toUpperCase().replace(/\s+/g, '-').substring(0, 8);
-  if (navigator.share) {
-    navigator.share({ title: 'Join ' + _groupName + ' on Anchored In Group', text: 'Join our prayer group! Use code: ' + code + '\n\nhttps://group.anchoredin.app' });
-  } else {
-    window.open('sms:?&body=' + encodeURIComponent('Join our prayer group on Anchored In! Code: ' + code + '\nhttps://group.anchoredin.app'));
-  }
-}
-
-function textGroup() {
-  window.open('sms:?&body=' + encodeURIComponent('Hey prayer group — checking in from Anchored In Group! https://group.anchoredin.app'));
-}
+init();
 </script>
 </body>
 </html>
