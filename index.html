@@ -392,6 +392,22 @@
   </header>
   <div class="scroll-body">
     <div id="profile-error" class="error-msg" style="display:none;"></div>
+
+    <!-- Avatar -->
+    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:24px;">
+      <div id="profile-avatar-wrap" onclick="document.getElementById('avatar-file-input').click()"
+        style="width:80px;height:80px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;cursor:pointer;overflow:hidden;position:relative;">
+        <span id="profile-avatar-initials"></span>
+        <img id="profile-avatar-img" src="" style="display:none;width:100%;height:100%;object-fit:cover;" />
+      </div>
+      <button onclick="document.getElementById('avatar-file-input').click()"
+        style="margin-top:10px;background:none;border:none;color:var(--navy);font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;">
+        Change photo
+      </button>
+      <input type="file" id="avatar-file-input" accept="image/*" style="display:none;" onchange="uploadAvatar(this)" />
+      <div id="avatar-upload-status" style="font-size:12px;color:var(--muted);margin-top:4px;"></div>
+    </div>
+
     <div class="form-group">
       <label class="form-label">Your name</label>
       <input type="text" id="profile-name" placeholder="Your name" />
@@ -647,7 +663,7 @@ async function loadFeed() {
 
   var { data: requests } = await _sb
     .from('requests')
-    .select('*, profiles(name), request_updates(*, update_hearts(*)), acknowledgments(*)')
+    .select('*, profiles(name, avatar_url), request_updates(*, update_hearts(*)), acknowledgments(*)')
     .eq('group_id', _group.id)
     .eq('is_answered', false)
     .order('created_at', { ascending: false });
@@ -731,7 +747,7 @@ async function loadAnswered() {
 
   var { data: requests } = await _sb
     .from('requests')
-    .select('*, profiles(name), request_updates(*)')
+    .select('*, profiles(name, avatar_url), request_updates(*)')
     .eq('group_id', _group.id)
     .eq('is_answered', true)
     .order('updated_at', { ascending: false });
@@ -749,7 +765,7 @@ async function loadAnswered() {
     var latestUpdate = updates[0];
     return '<div class="card">' +
       '<span class="answered-badge">✓ Answered</span>' +
-      '<div class="req-header"><div class="avatar">' + initials(r.profiles ? r.profiles.name : '?') + '</div>' +
+      '<div class="req-header">' + avatarHtml(r.profiles ? r.profiles.name : '?', r.profiles ? r.profiles.avatar_url : null) +
       '<div class="req-meta"><div class="req-name">' + esc(r.profiles ? r.profiles.name : 'Unknown') + '</div>' +
       '<div class="req-date">' + timeAgo(r.created_at) + '</div></div></div>' +
       '<div class="req-body">' + esc(r.body) + '</div>' +
@@ -790,7 +806,7 @@ function renderRequestCard(r, isOwner) {
 
   return '<div class="card" id="req-' + r.id + '">' +
     '<div class="req-header">' +
-    '<div class="avatar" style="' + (isOwner ? 'background:var(--gold);color:var(--navy);' : '') + '">' + initials(name) + '</div>' +
+    avatarHtml(name, r.profiles ? r.profiles.avatar_url : null, isOwner ? 'background:var(--gold);color:var(--navy);' : '') +
     '<div class="req-meta"><div class="req-name">' + esc(name) + '</div><div class="req-date">' + timeAgo(r.created_at) + '</div></div>' +
     '</div>' +
     '<div class="req-body">' + esc(r.body) + '</div>' +
@@ -819,7 +835,7 @@ function renderMemberRow(m) {
   var name = m.profiles ? m.profiles.name : 'Unknown';
   var isLeader = _membership && _membership.role === 'leader';
   return '<div class="member-row" onclick="showMemberDetail(\'' + esc(name) + '\', \'' + m.user_id + '\', \'' + m.role + '\')">' +
-    '<div class="avatar" style="' + (isMe ? 'background:var(--gold);color:var(--navy);' : '') + '">' + initials(name) + '</div>' +
+    avatarHtml(name, m.profiles ? m.profiles.avatar_url : null, isMe ? 'background:var(--gold);color:var(--navy);' : '') +
     '<div class="member-info">' +
     '<div class="member-name">' + esc(name) + (isMe ? ' <span style="color:var(--muted);font-weight:400;">(you)</span>' : '') + '</div>' +
     (m.role === 'leader' ? '<div class="member-role">Leader</div>' : '') +
@@ -958,8 +974,41 @@ async function prayTheWord(request) {
 }
 
 // ── PROFILE ──
+function refreshProfileAvatar() {
+  var img = document.getElementById('profile-avatar-img');
+  var initEl = document.getElementById('profile-avatar-initials');
+  if (_profile && _profile.avatar_url) {
+    img.src = _profile.avatar_url;
+    img.style.display = 'block';
+    initEl.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    initEl.style.display = '';
+    initEl.textContent = initials(_profile ? _profile.name : '?');
+  }
+}
+
+async function uploadAvatar(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var statusEl = document.getElementById('avatar-upload-status');
+  statusEl.textContent = 'Uploading...';
+  var ext = file.name.split('.').pop() || 'jpg';
+  var path = _user.id + '.' + ext;
+  var { error: upErr } = await _sb.storage.from('avatars').upload(path, file, { upsert: true });
+  if (upErr) { statusEl.textContent = 'Upload failed: ' + upErr.message; return; }
+  var { data: urlData } = _sb.storage.from('avatars').getPublicUrl(path);
+  var url = urlData.publicUrl;
+  await _sb.from('profiles').update({ avatar_url: url }).eq('id', _user.id);
+  if (_profile) _profile.avatar_url = url;
+  refreshProfileAvatar();
+  statusEl.textContent = 'Photo updated!';
+  setTimeout(function() { statusEl.textContent = ''; }, 2000);
+}
+
 async function openProfile() {
   document.getElementById('profile-name').value = _profile ? _profile.name : '';
+  refreshProfileAvatar();
 
   // Load all groups
   var { data: memberships } = await _sb
@@ -1099,6 +1148,11 @@ function switchTab(tab) {
 // ── UTILS ──
 function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
 function initials(name) { return (name || '?').split(' ').map(function(w) { return w[0]; }).join('').toUpperCase().substring(0, 2); }
+function avatarHtml(name, url, extraStyle) {
+  var s = extraStyle || '';
+  if (url) return '<img src="' + esc(url) + '" class="avatar" style="object-fit:cover;' + s + '" />';
+  return '<div class="avatar" style="' + s + '">' + initials(name) + '</div>';
+}
 function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function timeAgo(ts) {
   var diff = (Date.now() - new Date(ts)) / 1000;
