@@ -565,17 +565,20 @@ async function createGroup() {
 
   if (!name) { showErr(errEl, 'Please enter a group name.'); return; }
 
-  var { data: codeData } = await _sb.rpc('generate_invite_code');
-  var code = codeData;
-
-  var { data: group, error } = await _sb.from('groups').insert({ name, invite_code: code, created_by: _user.id }).select().single();
-  if (error) { showErr(errEl, error.message); return; }
-
-  await _sb.from('members').insert({ group_id: group.id, user_id: _user.id, role: 'leader' });
-  _group = group;
-  var { data: mem } = await _sb.from('members').select('*').eq('group_id', group.id).eq('user_id', _user.id).single();
-  _membership = mem;
-  enterApp();
+  try {
+    var res = await fetch('/api/create-group', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, userId: _user.id })
+    });
+    var data = await res.json();
+    if (data.error) { showErr(errEl, data.error); return; }
+    _group = data.group;
+    _membership = data.membership;
+    enterApp();
+  } catch (e) {
+    showErr(errEl, e.message);
+  }
 }
 
 // ── ENTER APP ──
