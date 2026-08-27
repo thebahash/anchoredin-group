@@ -154,8 +154,8 @@
       <div style="font-size:18px;font-weight:700;color:var(--navy);margin-bottom:4px;">Get started</div>
       <div style="font-size:14px;color:var(--muted);margin-bottom:20px;">We'll send a one-time code to verify your number.</div>
       <div id="phone-error" class="error-msg" style="display:none;"></div>
-      <div class="form-group">
-        <label class="form-label">Your name</label>
+      <div class="form-group" id="name-field-wrap">
+        <label class="form-label">Your name <span style="font-weight:400;color:var(--muted);">(new members only)</span></label>
         <input type="text" id="input-name" placeholder="First name or full name" autocomplete="name" />
       </div>
       <div class="form-group">
@@ -163,6 +163,7 @@
         <input type="tel" id="input-phone" placeholder="(555) 000-0000" autocomplete="tel" />
       </div>
       <button class="btn-primary" id="btn-send-otp" onclick="sendOTP()">Send code →</button>
+      <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:10px;">Returning member? Leave your name blank.</p>
       <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:16px;line-height:1.6;">By continuing you agree to our <a href="/privacy.html" style="color:var(--gold);">Privacy Policy</a>.<br>Questions? <a href="mailto:hello@anchoredin.app" style="color:var(--gold);">hello@anchoredin.app</a></p>
       <div style="text-align:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--border);">
         <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em;">Also from Anchored In</div>
@@ -513,7 +514,6 @@ async function sendOTP() {
   var errEl = document.getElementById('phone-error');
   errEl.style.display = 'none';
 
-  if (!name) { showErr(errEl, 'Please enter your name.'); return; }
   if (!raw) { showErr(errEl, 'Please enter your phone number.'); return; }
 
   var btn = document.getElementById('btn-send-otp');
@@ -549,10 +549,22 @@ async function verifyOTP() {
 
   _user = data.user;
 
-  // Upsert profile
-  await _sb.from('profiles').upsert({ id: _user.id, name, phone });
-  var { data: profile } = await _sb.from('profiles').select('*').eq('id', _user.id).single();
-  _profile = profile;
+  // Check for existing profile first
+  var { data: existingProfile } = await _sb.from('profiles').select('*').eq('id', _user.id).single();
+  if (existingProfile) {
+    // Returning user — use existing profile, no name needed
+    _profile = existingProfile;
+  } else {
+    // New user — name is required
+    if (!name) {
+      showErr(errEl, 'Welcome! Please go back and enter your name to create your account.');
+      await _sb.auth.signOut();
+      return;
+    }
+    await _sb.from('profiles').upsert({ id: _user.id, name: name, phone: phone });
+    var { data: newProfile } = await _sb.from('profiles').select('*').eq('id', _user.id).single();
+    _profile = newProfile;
+  }
 
   // Check if already in a group
   var { data: membership } = await _sb
