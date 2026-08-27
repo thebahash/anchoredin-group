@@ -443,12 +443,22 @@ async function init() {
     var cfg = await res.json();
     _sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
 
+    // Check for invite link param
+    var joinCode = new URLSearchParams(window.location.search).get('join');
+
     var { data: { session } } = await _sb.auth.getSession();
     if (session) {
       _user = session.user;
       await loadUserContext();
+      // If came via invite link and not already in this group, go to join screen
+      if (joinCode) {
+        document.getElementById('input-invite').value = joinCode.toUpperCase();
+        showScreen('screen-group');
+      }
     } else {
       showScreen('screen-phone');
+      // Store join code so it survives auth flow
+      if (joinCode) window._pendingJoinCode = joinCode.toUpperCase();
     }
   } catch (e) {
     showScreen('screen-phone');
@@ -551,6 +561,11 @@ async function verifyOTP() {
     enterApp();
   } else {
     showScreen('screen-group');
+  }
+  // Apply pending join code from invite link
+  if (window._pendingJoinCode) {
+    document.getElementById('input-invite').value = window._pendingJoinCode;
+    window._pendingJoinCode = null;
   }
 }
 
@@ -731,11 +746,12 @@ async function loadMembers() {
     html += '</div>';
   }
 
-  // Show invite code
+  // Show invite card
+  var joinLink = 'https://group.anchoredin.app/?join=' + _group.invite_code;
   html += '<div class="card" style="text-align:center;">' +
-    '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Invite code</div>' +
-    '<div style="font-size:24px;font-weight:800;letter-spacing:0.15em;color:var(--navy);">' + _group.invite_code + '</div>' +
-    '<div style="font-size:12px;color:var(--muted);margin-top:4px;">Share this to add someone</div>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">Invite Link</div>' +
+    '<div style="font-size:13px;color:var(--navy);margin-bottom:12px;word-break:break-all;">' + esc(joinLink) + '</div>' +
+    '<button onclick="inviteMember()" class="btn-primary" style="margin-top:0;">Share Invite Link</button>' +
     '</div>';
 
   document.getElementById('members-list').innerHTML = html;
@@ -1116,11 +1132,12 @@ function textGroup() {
 }
 
 function inviteMember() {
-  var msg = 'Join our prayer group on Anchored In! Code: ' + _group.invite_code + '\nhttps://group.anchoredin.app';
+  var link = 'https://group.anchoredin.app/?join=' + _group.invite_code;
+  var msg = 'Join ' + _group.name + ' on Anchored In — tap to join: ' + link;
   if (navigator.share) {
-    navigator.share({ title: 'Join ' + _group.name, text: msg }).catch(function() {});
+    navigator.share({ title: 'Join ' + _group.name, url: link, text: msg }).catch(function() {});
   } else {
-    window.open('sms:?&body=' + encodeURIComponent(msg));
+    navigator.clipboard && navigator.clipboard.writeText(link).then(function() { alert('Link copied!'); });
   }
 }
 
