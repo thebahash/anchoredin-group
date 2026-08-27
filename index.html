@@ -257,6 +257,7 @@
         </div>
         <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px;">Prayer Requests</div>
       </div>
+      <button onclick="refreshCurrentTab()" style="background:none;border:none;cursor:pointer;padding:4px;color:rgba(255,255,255,0.6);font-size:18px;line-height:1;flex-shrink:0;" title="Refresh">&#8635;</button>
       <button onclick="openProfile()" id="header-profile-btn" style="background:none;border:none;cursor:pointer;padding:0;width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
         <span id="header-profile-initials" style="color:rgba(255,255,255,0.6);font-size:22px;">&#128100;</span>
         <img id="header-profile-img" src="" style="display:none;width:32px;height:32px;object-fit:cover;border-radius:50%;" />
@@ -983,6 +984,13 @@ async function markPraying(requestId, btn) {
 }
 
 function goToPost() { showScreen('screen-post'); }
+
+function refreshCurrentTab() {
+  if (_currentTab === 'requests') loadFeed();
+  else if (_currentTab === 'mine') loadMine();
+  else if (_currentTab === 'members') loadMembers();
+  else if (_currentTab === 'answered') loadAnswered();
+}
 
 async function submitRequest(journey) {
   var text = document.getElementById('post-text').value.trim();
