@@ -456,8 +456,7 @@ async function init() {
       await loadUserContext();
       // If came via invite link and not already in this group, go to join screen
       if (joinCode) {
-        document.getElementById('input-invite').value = joinCode.toUpperCase();
-        showScreen('screen-group');
+        await autoJoinGroup(joinCode.toUpperCase());
       }
     } else {
       showScreen('screen-phone');
@@ -577,28 +576,49 @@ async function verifyOTP() {
   } else {
     showScreen('screen-group');
   }
-  // Apply pending join code from invite link
+  // Auto-join if came via invite link
   if (window._pendingJoinCode) {
-    document.getElementById('input-invite').value = window._pendingJoinCode;
+    var code = window._pendingJoinCode;
     window._pendingJoinCode = null;
+    await autoJoinGroup(code);
+    return;
   }
 }
 
 // ── GROUP JOIN/CREATE ──
+async function autoJoinGroup(code) {
+  var r = await fetch('/api/join-group', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inviteCode: code, userId: _user.id })
+  });
+  var data = await r.json();
+  if (data.error || !data.group) {
+    // Couldn't auto-join — fall back to join screen with code pre-filled
+    document.getElementById('input-invite').value = code;
+    showScreen('screen-group');
+    return;
+  }
+  _group = data.group;
+  _membership = data.membership;
+  enterApp();
+}
+
 async function joinGroup() {
   var code = document.getElementById('input-invite').value.trim().toUpperCase();
   var errEl = document.getElementById('group-error');
   errEl.style.display = 'none';
-
   if (!code) { showErr(errEl, 'Enter an invite code to join a group.'); return; }
 
-  var { data: group, error } = await _sb.from('groups').select('*').eq('invite_code', code).single();
-  if (error || !group) { showErr(errEl, 'Group not found. Check the code and try again.'); return; }
-
-  await _sb.from('members').upsert({ group_id: group.id, user_id: _user.id, role: 'member' });
-  _group = group;
-  var { data: mem } = await _sb.from('members').select('*').eq('group_id', group.id).eq('user_id', _user.id).single();
-  _membership = mem;
+  var r = await fetch('/api/join-group', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inviteCode: code, userId: _user.id })
+  });
+  var data = await r.json();
+  if (data.error || !data.group) { showErr(errEl, data.error || 'Group not found.'); return; }
+  _group = data.group;
+  _membership = data.membership;
   enterApp();
 }
 
@@ -632,8 +652,42 @@ function enterApp() {
   document.getElementById('group-name-label').textContent = _group.name;
   refreshProfileAvatar();
   subscribeToGroup();
+  registerPush();
   showScreen('screen-main');
   switchTab('requests');
+}
+
+// ── PUSH NOTIFICATIONS ──
+var _vapidPublicKey = 'BOBKbs7aYv7Z4Fesm1zM-NsX3s2uL9ctWXlKXmnwc3yjX7Ies-9i3Cj210vDoU6LV14U809KzyoDd50JVYOTLIc';
+
+function urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var rawData = atob(base64);
+  var outputArray = new Uint8Array(rawData.length);
+  for (var i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+async function registerPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    var reg = await navigator.serviceWorker.register('/sw.js');
+    var permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+    var existing = await reg.pushManager.getSubscription();
+    var sub = existing || await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(_vapidPublicKey)
+    });
+    await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: _user.id, groupId: _group.id, subscription: sub.toJSON() })
+    });
+  } catch (e) {
+    console.log('Push setup failed:', e.message);
+  }
 }
 
 // ── REALTIME ──
@@ -945,7 +999,7 @@ async function submitRequest(journey) {
   fetch('/api/notify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ groupId: _group.id, requesterName: _profile.name, requestPreview: text })
+    body: JSON.stringify({ groupId: _group.id, requesterId: _user.id, requesterName: _profile.name, requestPreview: text })
   }).catch(function() {});
 
   document.getElementById('post-text').value = '';
