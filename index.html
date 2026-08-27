@@ -200,11 +200,26 @@
 <!-- SCREEN: MAIN APP -->
 <div class="screen" id="screen-main">
 
+  <!-- GROUP SWITCHER DRAWER -->
+  <div id="group-drawer" style="display:none;position:fixed;inset:0;z-index:100;">
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.4);" onclick="closeGroupDrawer()"></div>
+    <div style="position:absolute;top:0;left:0;right:0;background:var(--navy);padding:20px 16px 8px;border-radius:0 0 20px 20px;max-height:70vh;overflow-y:auto;">
+      <div style="font-size:12px;font-weight:700;color:var(--gold-light);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">Your Groups</div>
+      <div id="group-switcher-list"></div>
+      <div style="border-top:1px solid rgba(255,255,255,0.1);margin-top:8px;padding-top:8px;">
+        <button onclick="closeGroupDrawer();showScreen('screen-group');" style="width:100%;background:none;border:none;color:rgba(255,255,255,0.6);font-size:14px;padding:12px 0;cursor:pointer;text-align:left;">+ Join another group</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TAB: REQUESTS -->
   <div id="tab-requests" class="tab-content" style="display:flex;flex-direction:column;flex:1;min-height:0;">
-    <header>
-      <div>
-        <h1>Prayer Requests</h1>
+    <header style="cursor:pointer;" onclick="openGroupDrawer()">
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <h1>Prayer Requests</h1>
+          <span style="font-size:12px;color:var(--gold-light);">&#9660;</span>
+        </div>
         <div class="group-name" id="group-name-label"></div>
       </div>
     </header>
@@ -468,6 +483,47 @@ function enterApp() {
   document.getElementById('group-name-label').textContent = _group.name;
   showScreen('screen-main');
   switchTab('requests');
+}
+
+// ── GROUP SWITCHER ──
+var _allMemberships = [];
+
+async function openGroupDrawer() {
+  var { data: memberships } = await _sb
+    .from('members')
+    .select('*, groups(*)')
+    .eq('user_id', _user.id)
+    .order('joined_at', { ascending: false });
+
+  _allMemberships = memberships || [];
+
+  var html = _allMemberships.map(function(m) {
+    var isActive = m.group_id === _group.id;
+    return '<div onclick="switchGroup(\'' + m.group_id + '\')" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;">' +
+      '<div style="width:8px;height:8px;border-radius:50%;background:' + (isActive ? 'var(--gold)' : 'transparent') + ';border:2px solid ' + (isActive ? 'var(--gold)' : 'rgba(255,255,255,0.3)') + ';flex-shrink:0;"></div>' +
+      '<div style="flex:1;">' +
+      '<div style="color:#fff;font-size:15px;font-weight:' + (isActive ? '700' : '400') + ';">' + esc(m.groups.name) + '</div>' +
+      '<div style="color:rgba(255,255,255,0.45);font-size:12px;">' + m.role + '</div>' +
+      '</div>' +
+      '</div>';
+  }).join('');
+
+  document.getElementById('group-switcher-list').innerHTML = html;
+  document.getElementById('group-drawer').style.display = 'block';
+}
+
+function closeGroupDrawer() {
+  document.getElementById('group-drawer').style.display = 'none';
+}
+
+function switchGroup(groupId) {
+  var membership = _allMemberships.find(function(m) { return m.group_id === groupId; });
+  if (!membership) return;
+  _group = membership.groups;
+  _membership = membership;
+  document.getElementById('group-name-label').textContent = _group.name;
+  closeGroupDrawer();
+  switchTab(_currentTab);
 }
 
 // ── FEED ──
