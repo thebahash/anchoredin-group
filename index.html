@@ -547,7 +547,7 @@ async function loadFeed() {
 
   var { data: requests } = await _sb
     .from('requests')
-    .select('*, profiles(name), request_updates(*), acknowledgments(*)')
+    .select('*, profiles(name), request_updates(*, update_hearts(*)), acknowledgments(*)')
     .eq('group_id', _group.id)
     .eq('is_answered', false)
     .order('created_at', { ascending: false });
@@ -559,6 +559,7 @@ async function loadFeed() {
     return;
   }
 
+  enrichUpdatesWithHearts(requests);
   document.getElementById('feed-list').innerHTML = requests.map(function(r) { return renderRequestCard(r, false); }).join('');
 }
 
@@ -568,7 +569,7 @@ async function loadMine() {
 
   var { data: requests } = await _sb
     .from('requests')
-    .select('*, request_updates(*), acknowledgments(*)')
+    .select('*, request_updates(*, update_hearts(*)), acknowledgments(*)')
     .eq('group_id', _group.id)
     .eq('user_id', _user.id)
     .eq('is_answered', false)
@@ -581,6 +582,7 @@ async function loadMine() {
     return;
   }
 
+  enrichUpdatesWithHearts(requests);
   document.getElementById('mine-list').innerHTML = requests.map(function(r) { return renderRequestCard(r, true); }).join('');
 }
 
@@ -655,12 +657,34 @@ async function loadAnswered() {
 }
 
 // ── RENDER HELPERS ──
+function enrichUpdatesWithHearts(requests) {
+  (requests || []).forEach(function(r) {
+    (r.request_updates || []).forEach(function(u) {
+      var hearts = u.update_hearts || [];
+      u.heart_count = hearts.length;
+      u.has_hearted = hearts.some(function(h) { return h.user_id === _user.id; });
+    });
+  });
+}
+
 function renderRequestCard(r, isOwner) {
   var acks = r.acknowledgments || [];
   var hasPrayed = acks.some(function(a) { return a.user_id === _user.id; });
-  var updates = (r.request_updates || []).sort(function(a,b) { return new Date(b.created_at) - new Date(a.created_at); });
-  var latestUpdate = updates[0];
+  var updates = (r.request_updates || []).sort(function(a,b) { return new Date(a.created_at) - new Date(b.created_at); });
   var name = isOwner ? 'You' : (r.profiles ? r.profiles.name : 'Unknown');
+
+  var updatesHtml = updates.map(function(u) {
+    var heartCount = u.heart_count || 0;
+    var hasHearted = u.has_hearted || false;
+    return '<div class="update-bubble" id="upd-' + u.id + '">' +
+      '<strong>' + (u.is_praise ? '🙌 Praise:' : 'Update:') + '</strong> ' + esc(u.body) +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">' +
+      '<div class="upd-date">' + timeAgo(u.created_at) + '</div>' +
+      '<button onclick="heartUpdate(\'' + u.id + '\', this)" style="background:none;border:none;cursor:pointer;font-size:13px;color:' + (hasHearted ? '#e05' : 'var(--muted)') + ';padding:0;">' +
+      (hasHearted ? '❤️' : '🤍') + (heartCount > 0 ? ' ' + heartCount : '') +
+      '</button>' +
+      '</div></div>';
+  }).join('');
 
   return '<div class="card" id="req-' + r.id + '">' +
     '<div class="req-header">' +
@@ -668,7 +692,7 @@ function renderRequestCard(r, isOwner) {
     '<div class="req-meta"><div class="req-name">' + esc(name) + '</div><div class="req-date">' + timeAgo(r.created_at) + '</div></div>' +
     '</div>' +
     '<div class="req-body">' + esc(r.body) + '</div>' +
-    (latestUpdate ? '<div class="update-bubble"><strong>' + (latestUpdate.is_praise ? 'Praise:' : 'Update:') + '</strong> ' + esc(latestUpdate.body) + '<div class="upd-date">' + timeAgo(latestUpdate.created_at) + '</div></div>' : '') +
+    updatesHtml +
     '<div class="req-footer">' +
     '<span class="pray-count" id="ack-count-' + r.id + '">🤲 ' + acks.length + ' praying</span>' +
     '<div class="btn-row" style="margin-top:0;">' +
@@ -702,6 +726,21 @@ function renderMemberRow(m) {
 }
 
 // ── ACTIONS ──
+async function heartUpdate(updateId, btn) {
+  var hearted = btn.textContent.includes('❤️');
+  if (hearted) {
+    await _sb.from('update_hearts').delete().eq('update_id', updateId).eq('user_id', _user.id);
+    var cur = parseInt(btn.textContent.replace(/\D/g,'')) || 0;
+    btn.style.color = 'var(--muted)';
+    btn.textContent = '🤍' + (cur > 1 ? ' ' + (cur - 1) : '');
+  } else {
+    await _sb.from('update_hearts').upsert({ update_id: updateId, user_id: _user.id });
+    var cur = parseInt(btn.textContent.replace(/\D/g,'')) || 0;
+    btn.style.color = '#e05';
+    btn.textContent = '❤️ ' + (cur + 1);
+  }
+}
+
 async function markPraying(requestId, btn) {
   btn.disabled = true; btn.textContent = '...';
   var { error } = await _sb.from('acknowledgments').insert({ request_id: requestId, user_id: _user.id });
