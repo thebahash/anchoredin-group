@@ -342,19 +342,19 @@
 <div class="screen" id="screen-update">
   <header>
     <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
-    <h1>Add Reply</h1>
+    <h1>Post an Update</h1>
   </header>
   <div class="scroll-body">
     <div id="update-error" class="error-msg" style="display:none;"></div>
     <div class="form-group">
-      <label class="form-label">Your reply</label>
-      <textarea id="update-text" rows="5" placeholder="Encourage, pray with them, or share an update..."></textarea>
+      <label class="form-label">What's the latest?</label>
+      <textarea id="update-text" rows="5" placeholder="Still need prayer, got an answer, or just keeping the group updated..."></textarea>
     </div>
     <div class="form-group" style="display:flex;align-items:center;gap:10px;">
       <input type="checkbox" id="update-is-praise" style="width:auto;" />
       <label for="update-is-praise" style="font-size:14px;cursor:pointer;">This is a praise report 🙌</label>
     </div>
-    <button class="btn-primary" onclick="submitUpdate()">Post Reply</button>
+    <button class="btn-primary" onclick="submitUpdate()">Post Update</button>
   </div>
 </div>
 
@@ -928,11 +928,11 @@ function renderRequestCard(r, isOwner) {
     '<button class="btn btn-word btn-sm" onclick="prayTheWord(_reqCache[\'' + r.id + '\'])">Pray the Word</button>' +
     '</div>' +
     '</div>' +
-    '<div class="btn-row">' +
-    '<button class="btn btn-outline btn-sm" onclick="openUpdateForm(\'' + r.id + '\')">💬 Reply</button>' +
-    (isOwner ? '<button class="btn btn-outline btn-sm" onclick="goToJourney()">Take journey</button>' : '') +
-    (isOwner ? '<button class="btn btn-outline btn-sm" onclick="markAnswered(\'' + r.id + '\')">✓ Answered</button>' : '') +
-    '</div>' +
+    (isOwner ? '<div class="btn-row">' +
+    '<button class="btn btn-outline btn-sm" onclick="openUpdateForm(\'' + r.id + '\')">Post update</button>' +
+    '<button class="btn btn-outline btn-sm" onclick="goToJourney()">Take journey</button>' +
+    '<button class="btn btn-outline btn-sm" onclick="markAnswered(\'' + r.id + '\')">✓ Answered</button>' +
+    '</div>' : '') +
     '</div>';
 }
 
