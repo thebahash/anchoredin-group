@@ -217,10 +217,10 @@
     <header style="cursor:pointer;" onclick="openGroupDrawer()">
       <div style="flex:1;">
         <div style="display:flex;align-items:center;gap:6px;">
-          <h1>Prayer Requests</h1>
-          <span style="font-size:12px;color:var(--gold-light);">&#9660;</span>
+          <div id="group-name-label" style="font-size:17px;font-weight:700;color:#fff;"></div>
+          <span style="font-size:11px;color:var(--gold-light);">&#9660;</span>
         </div>
-        <div class="group-name" id="group-name-label"></div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px;">Prayer Requests</div>
       </div>
     </header>
     <div class="scroll-body" id="feed-scroll">
@@ -244,7 +244,10 @@
 
   <!-- TAB: MEMBERS -->
   <div id="tab-members" class="tab-content" style="display:none;flex-direction:column;flex:1;min-height:0;">
-    <header><h1>Members</h1></header>
+    <header>
+      <h1 style="flex:1;">Members</h1>
+      <button onclick="renameGroup()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer;padding:4px 0;">Rename</button>
+    </header>
     <div class="scroll-body">
       <div class="loading" id="members-loading">Loading...</div>
       <div id="members-list"></div>
@@ -514,6 +517,17 @@ async function openGroupDrawer() {
 
 function closeGroupDrawer() {
   document.getElementById('group-drawer').style.display = 'none';
+}
+
+async function renameGroup() {
+  var newName = prompt('Rename this group:', _group.name);
+  if (!newName || !newName.trim() || newName.trim() === _group.name) return;
+  newName = newName.trim();
+  var { error } = await _sb.from('groups').update({ name: newName }).eq('id', _group.id);
+  if (!error) {
+    _group.name = newName;
+    document.getElementById('group-name-label').textContent = newName;
+  }
 }
 
 function switchGroup(groupId) {
