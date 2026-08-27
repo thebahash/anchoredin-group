@@ -101,31 +101,44 @@
 
 <!-- SCREEN: ENTER PHONE -->
 <div class="screen" id="screen-phone">
-  <div class="scroll-body">
-    <div class="onboard-wrap">
-      <div style="background:var(--navy);margin:-32px -24px 28px;padding:36px 24px 28px;text-align:center;">
-        <div style="font-size:30px;font-weight:800;color:#fff;letter-spacing:-0.5px;">Anchored In</div>
-        <div style="font-size:13px;color:var(--gold-light);font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-top:2px;">Group</div>
-        <div style="font-size:15px;color:rgba(255,255,255,0.75);margin-top:12px;line-height:1.5;">A simple place for your Bible study or small group to share prayer requests and pray for each other.</div>
-      </div>
+  <div class="scroll-body" style="padding:0;">
 
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px;">
-        <div style="display:flex;align-items:flex-start;gap:12px;">
-          <span style="font-size:20px;">🙏</span>
-          <div><div style="font-size:14px;font-weight:600;">Share requests with your group</div><div style="font-size:13px;color:var(--muted);">Post what's on your heart and let your group pray with you.</div></div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:12px;">
-          <span style="font-size:20px;">🤲</span>
-          <div><div style="font-size:14px;font-weight:600;">Pray for each other</div><div style="font-size:13px;color:var(--muted);">Tap to mark when you've prayed so people know they're covered.</div></div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:12px;">
-          <span style="font-size:20px;">📖</span>
-          <div><div style="font-size:14px;font-weight:600;">Pray scripture over requests</div><div style="font-size:13px;color:var(--muted);">Get Word-based prayers for any situation, powered by Anchored In.</div></div>
+    <!-- Hero -->
+    <div style="background:var(--navy);padding:48px 28px 36px;text-align:center;">
+      <div style="font-size:13px;font-weight:700;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:10px;">Anchored In</div>
+      <div style="font-size:36px;font-weight:800;color:#fff;letter-spacing:-0.5px;line-height:1.1;margin-bottom:14px;">Group</div>
+      <div style="font-size:16px;color:rgba(255,255,255,0.7);line-height:1.6;max-width:300px;margin:0 auto;">A prayer request app built for Bible studies and small groups.</div>
+    </div>
+
+    <!-- Feature strips -->
+    <div style="background:#fff;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:16px;padding:18px 24px;border-bottom:1px solid var(--border);">
+        <div style="width:42px;height:42px;border-radius:12px;background:var(--cream);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🙏</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--navy);">Share what's on your heart</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px;">Post prayer requests your whole group can see and pray over.</div>
         </div>
       </div>
+      <div style="display:flex;align-items:center;gap:16px;padding:18px 24px;border-bottom:1px solid var(--border);">
+        <div style="width:42px;height:42px;border-radius:12px;background:var(--cream);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🤲</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--navy);">Know you're being prayed for</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px;">Members tap "I prayed" so you know who's covering you.</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;padding:18px 24px;">
+        <div style="width:42px;height:42px;border-radius:12px;background:var(--cream);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📖</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--navy);">Pray scripture over requests</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px;">Get Word-based prayers for any situation, powered by Anchored In.</div>
+        </div>
+      </div>
+    </div>
 
-      <h2 style="margin-bottom:6px;">Get started</h2>
-      <p>Enter your name and phone number. We'll send a one-time code to verify.</p>
+    <!-- Form -->
+    <div style="padding:28px 24px 40px;">
+      <div style="font-size:18px;font-weight:700;color:var(--navy);margin-bottom:4px;">Get started</div>
+      <div style="font-size:14px;color:var(--muted);margin-bottom:20px;">We'll send a one-time code to verify your number.</div>
       <div id="phone-error" class="error-msg" style="display:none;"></div>
       <div class="form-group">
         <label class="form-label">Your name</label>
@@ -135,9 +148,10 @@
         <label class="form-label">Phone number</label>
         <input type="tel" id="input-phone" placeholder="+1 (555) 000-0000" autocomplete="tel" />
       </div>
-      <button class="btn-primary" id="btn-send-otp" onclick="sendOTP()">Send code</button>
-      <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:16px;">By continuing you agree to our <a href="/privacy.html" style="color:var(--gold);">Privacy Policy</a>. Questions? <a href="mailto:hello@anchoredin.app" style="color:var(--gold);">hello@anchoredin.app</a></p>
+      <button class="btn-primary" id="btn-send-otp" onclick="sendOTP()">Send code →</button>
+      <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:16px;line-height:1.6;">By continuing you agree to our <a href="/privacy.html" style="color:var(--gold);">Privacy Policy</a>.<br>Questions? <a href="mailto:hello@anchoredin.app" style="color:var(--gold);">hello@anchoredin.app</a></p>
     </div>
+
   </div>
 </div>
 
