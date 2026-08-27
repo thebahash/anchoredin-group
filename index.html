@@ -290,8 +290,11 @@
     <div class="scroll-body">
       <div class="loading" id="members-loading">Loading...</div>
       <div id="members-list"></div>
-      <div style="text-align:center;padding:8px 0 24px;">
+      <div style="text-align:center;padding:8px 0 4px;">
         <button class="btn btn-outline" onclick="inviteMember()">+ Invite someone</button>
+      </div>
+      <div style="text-align:center;padding:4px 0 24px;">
+        <button onclick="textGroup()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:8px;">💬 Text the group</button>
       </div>
     </div>
   </div>
@@ -306,9 +309,9 @@
   </div>
 
   <nav class="bottom-nav">
-    <button class="nav-item active" id="nav-requests" onclick="switchTab('requests')"><span class="icon">🙏</span>Requests</button>
+    <button class="nav-item active" id="nav-requests" onclick="switchTab('requests')" style="position:relative;"><span class="icon">🙏</span>Requests<span id="new-dot" style="display:none;position:absolute;top:6px;right:12px;width:8px;height:8px;background:var(--gold);border-radius:50%;"></span></button>
     <button class="nav-item" id="nav-mine" onclick="switchTab('mine')"><span class="icon">👤</span>Mine</button>
-    <button class="nav-pill" onclick="textGroup()">Text<br>Group</button>
+    <button class="nav-pill" onclick="goToPost()" style="width:56px;height:56px;border-radius:50%;padding:0;font-size:28px;line-height:1;">+</button>
     <button class="nav-item" id="nav-members" onclick="switchTab('members')"><span class="icon">👥</span>Members</button>
     <button class="nav-item" id="nav-answered" onclick="switchTab('answered')"><span class="icon">🙌</span>Answered</button>
   </nav>
@@ -339,19 +342,19 @@
 <div class="screen" id="screen-update">
   <header>
     <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
-    <h1>Add Update</h1>
+    <h1>Add Reply</h1>
   </header>
   <div class="scroll-body">
     <div id="update-error" class="error-msg" style="display:none;"></div>
     <div class="form-group">
-      <label class="form-label">What's the update?</label>
-      <textarea id="update-text" rows="5" placeholder="Share how things are going..."></textarea>
+      <label class="form-label">Your reply</label>
+      <textarea id="update-text" rows="5" placeholder="Encourage, pray with them, or share an update..."></textarea>
     </div>
     <div class="form-group" style="display:flex;align-items:center;gap:10px;">
       <input type="checkbox" id="update-is-praise" style="width:auto;" />
       <label for="update-is-praise" style="font-size:14px;cursor:pointer;">This is a praise report 🙌</label>
     </div>
-    <button class="btn-primary" onclick="submitUpdate()">Post Update</button>
+    <button class="btn-primary" onclick="submitUpdate()">Post Reply</button>
   </div>
 </div>
 
@@ -699,6 +702,8 @@ function subscribeToGroup() {
     .channel('group-' + _group.id)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'requests', filter: 'group_id=eq.' + _group.id }, function() {
       loadFeed();
+      // Show new dot if user isn't already on requests tab
+      if (_currentTab !== 'requests') document.getElementById('new-dot').style.display = 'block';
     })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests', filter: 'group_id=eq.' + _group.id }, function() {
       loadFeed();
@@ -872,7 +877,7 @@ async function loadAnswered() {
       '<div class="req-meta"><div class="req-name">' + esc(r.profiles ? r.profiles.name : 'Unknown') + '</div>' +
       '<div class="req-date">' + timeAgo(r.created_at) + '</div></div></div>' +
       '<div class="req-body">' + esc(r.body) + '</div>' +
-      (latestUpdate ? '<div class="update-bubble"><strong>' + (latestUpdate.is_praise ? 'Praise report' : 'Update') + ':</strong> ' + esc(latestUpdate.body) + '<div class="upd-date">' + timeAgo(latestUpdate.created_at) + '</div></div>' : '') +
+      (latestUpdate ? '<div class="update-bubble"><strong>' + (latestUpdate.is_praise ? '🙌 Praise:' : '💬 Reply:') + '</strong> ' + esc(latestUpdate.body) + '<div class="upd-date">' + timeAgo(latestUpdate.created_at) + '</div></div>' : '') +
       '</div>';
   }).join('');
 }
@@ -898,7 +903,7 @@ function renderRequestCard(r, isOwner) {
     var heartCount = u.heart_count || 0;
     var hasHearted = u.has_hearted || false;
     return '<div class="update-bubble" id="upd-' + u.id + '">' +
-      '<strong>' + (u.is_praise ? '🙌 Praise:' : 'Update:') + '</strong> ' + esc(u.body) +
+      '<strong>' + (u.is_praise ? '🙌 Praise:' : '💬 Reply:') + '</strong> ' + esc(u.body) +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">' +
       '<div class="upd-date">' + timeAgo(u.created_at) + '</div>' +
       '<button onclick="heartUpdate(\'' + u.id + '\', this)" style="background:none;border:none;cursor:pointer;font-size:13px;color:' + (hasHearted ? '#e05' : 'var(--muted)') + ';padding:0;">' +
@@ -923,13 +928,11 @@ function renderRequestCard(r, isOwner) {
     '<button class="btn btn-word btn-sm" onclick="prayTheWord(_reqCache[\'' + r.id + '\'])">Pray the Word</button>' +
     '</div>' +
     '</div>' +
-    (isOwner
-      ? '<div class="btn-row">' +
-        '<button class="btn btn-outline btn-sm" onclick="openUpdateForm(\'' + r.id + '\')">+ Update</button>' +
-        '<button class="btn btn-outline btn-sm" onclick="goToJourney()">Take journey</button>' +
-        '<button class="btn btn-outline btn-sm" onclick="markAnswered(\'' + r.id + '\')">✓ Answered</button>' +
-        '</div>'
-      : '') +
+    '<div class="btn-row">' +
+    '<button class="btn btn-outline btn-sm" onclick="openUpdateForm(\'' + r.id + '\')">💬 Reply</button>' +
+    (isOwner ? '<button class="btn btn-outline btn-sm" onclick="goToJourney()">Take journey</button>' : '') +
+    (isOwner ? '<button class="btn btn-outline btn-sm" onclick="markAnswered(\'' + r.id + '\')">✓ Answered</button>' : '') +
+    '</div>' +
     '</div>';
 }
 
@@ -1250,7 +1253,7 @@ function switchTab(tab) {
   var nav = document.getElementById('nav-' + tab);
   if (nav) nav.classList.add('active');
 
-  if (tab === 'requests') loadFeed();
+  if (tab === 'requests') { document.getElementById('new-dot').style.display = 'none'; loadFeed(); }
   else if (tab === 'mine') loadMine();
   else if (tab === 'members') loadMembers();
   else if (tab === 'answered') loadAnswered();
