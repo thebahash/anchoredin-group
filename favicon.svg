@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="22" fill="#1a2a4a"/>
+  <!-- Anchor -->
+  <g fill="none" stroke="#c9a84c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Ring at top -->
+    <circle cx="50" cy="28" r="8" />
+    <!-- Vertical shaft -->
+    <line x1="50" y1="36" x2="50" y2="75" />
+    <!-- Crossbar -->
+    <line x1="32" y1="50" x2="68" y2="50" />
+    <!-- Left curl -->
+    <path d="M32 75 Q20 75 20 63" />
+    <!-- Right curl -->
+    <path d="M68 75 Q80 75 80 63" />
+    <!-- Bottom stop -->
+    <line x1="38" y1="75" x2="62" y2="75" />
+  </g>
+</svg>

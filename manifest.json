@@ -1,0 +1,13 @@
+{
+  "name": "Anchored In Group",
+  "short_name": "AI Group",
+  "description": "A prayer request app for Bible studies and small groups.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a2a4a",
+  "theme_color": "#1a2a4a",
+  "icons": [
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
