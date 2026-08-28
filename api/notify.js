@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   const userId = await getAuthUserId(req);
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-  const { groupId, requesterName, requestPreview } = req.body;
+  const { groupId, requesterName, requestPreview, requestId } = req.body;
   if (!groupId) return res.status(400).json({ error: 'Missing groupId' });
 
   const sbUrl = process.env.SUPABASE_URL;
@@ -42,7 +42,8 @@ export default async function handler(req, res) {
     const pushPayload = JSON.stringify({
       title: requesterName + ' posted a prayer request',
       body: preview || 'Open the app to read and pray.',
-      tag: 'prayer-' + groupId
+      tag: 'prayer-' + groupId,
+      requestId: requestId || null
     });
     const smsBody = requesterName + ' posted a prayer request: "' + preview + '" — pray with them at group.anchoredin.app';
 

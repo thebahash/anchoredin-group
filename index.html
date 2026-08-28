@@ -386,6 +386,7 @@
       <div class="card" style="font-size:16px;line-height:1.8;color:var(--text);" id="pray-text"></div>
       <div style="margin-top:16px;display:flex;gap:10px;">
         <button class="btn-primary" onclick="prayTheWord(_prayRequest)" style="flex:1;">Generate another</button>
+        <button class="btn btn-outline" onclick="copyPrayer()" id="btn-copy-prayer" style="flex:1;">Copy prayer</button>
       </div>
     </div>
     <div id="pray-error" class="error-msg" style="display:none;margin-top:20px;"></div>
@@ -668,7 +669,8 @@ function enterApp() {
   document.getElementById('group-name-label').textContent = _group.name;
   refreshProfileAvatar();
   subscribeToGroup();
-  registerPush();
+  // Register SW silently — don't ask for notification permission yet
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function() {});
   showScreen('screen-main');
   switchTab('requests');
 }
@@ -688,7 +690,7 @@ function urlBase64ToUint8Array(base64String) {
 async function registerPush() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
   try {
-    var reg = await navigator.serviceWorker.register('/sw.js');
+    var reg = await navigator.serviceWorker.getRegistration('/sw.js') || await navigator.serviceWorker.register('/sw.js');
     var permission = await Notification.requestPermission();
     if (permission !== 'granted') return;
     var existing = await reg.pushManager.getSubscription();
@@ -792,7 +794,7 @@ async function loadFeed(append) {
 
   var { data: requests } = await _sb
     .from('requests')
-    .select('*, profiles(name, avatar_url), request_updates(*, update_hearts(*)), acknowledgments(*)')
+    .select('*, profiles(name, avatar_url), request_updates(*, update_hearts(*)), acknowledgments(*, profiles(name, avatar_url))')
     .eq('group_id', _group.id)
     .eq('is_answered', false)
     .order('created_at', { ascending: false })
@@ -815,6 +817,10 @@ async function loadFeed(append) {
     document.getElementById('feed-list').insertAdjacentHTML('beforeend', html);
   } else {
     document.getElementById('feed-list').innerHTML = html;
+    // First page only: welcome card, soft push prompt, deep link scroll
+    maybeShowWelcomeCard();
+    maybeShowPushBanner();
+    checkDeepLink();
   }
   renderLoadMore();
 }
@@ -842,7 +848,7 @@ async function loadMine() {
 
   var { data: requests } = await _sb
     .from('requests')
-    .select('*, profiles(name, avatar_url), request_updates(*, update_hearts(*)), acknowledgments(*)')
+    .select('*, profiles(name, avatar_url), request_updates(*, update_hearts(*)), acknowledgments(*, profiles(name, avatar_url))')
     .eq('group_id', _group.id)
     .eq('user_id', _user.id)
     .eq('is_answered', false)
@@ -904,7 +910,7 @@ async function loadAnswered() {
 
   var { data: requests } = await _sb
     .from('requests')
-    .select('*, profiles(name, avatar_url), request_updates(*), acknowledgments(*)')
+    .select('*, profiles(name, avatar_url), request_updates(*), acknowledgments(*, profiles(name, avatar_url))')
     .eq('group_id', _group.id)
     .eq('is_answered', true)
     .order('updated_at', { ascending: false });
@@ -932,6 +938,27 @@ async function loadAnswered() {
 }
 
 // ── RENDER HELPERS ──
+function prayerAcksHtml(acks, reqId) {
+  if (!acks || acks.length === 0) {
+    return '<span id="ack-count-' + reqId + '" class="pray-count">Be the first to pray</span>';
+  }
+  var MAX_SHOWN = 3;
+  var shown = acks.slice(0, MAX_SHOWN);
+  var extra = acks.length - shown.length;
+  var names = shown.map(function(a) {
+    return (a.profiles && a.profiles.name) ? a.profiles.name.split(' ')[0] : '?';
+  });
+  var label = names.join(', ') + (extra > 0 ? ' +' + extra : '') + ' prayed';
+  var bubbles = shown.map(function(a) {
+    var p = a.profiles || {};
+    return avatarHtml(p.name || '?', p.avatar_url || null, 'width:22px;height:22px;font-size:9px;border-radius:50%;margin-right:-5px;border:2px solid #fff;flex-shrink:0;');
+  }).join('');
+  return '<span id="ack-count-' + reqId + '" style="display:flex;align-items:center;gap:7px;">' +
+    '<span style="display:flex;align-items:center;">' + bubbles + '</span>' +
+    '<span class="pray-count">' + esc(label) + '</span>' +
+    '</span>';
+}
+
 function enrichUpdatesWithHearts(requests) {
   (requests || []).forEach(function(r) {
     (r.request_updates || []).forEach(function(u) {
@@ -969,7 +996,7 @@ function renderRequestCard(r, isOwner) {
     '<div class="req-body">' + esc(r.body) + '</div>' +
     updatesHtml +
     '<div class="req-footer">' +
-    '<span class="pray-count" id="ack-count-' + r.id + '">🤲 ' + acks.length + ' praying</span>' +
+    prayerAcksHtml(acks, r.id) +
     '<div class="btn-row" style="margin-top:0;">' +
     (hasPrayed
       ? '<button class="btn btn-pray btn-sm btn-prayed" disabled>🤲 Praying</button>'
@@ -979,7 +1006,6 @@ function renderRequestCard(r, isOwner) {
     '</div>' +
     (isOwner ? '<div class="btn-row">' +
     '<button class="btn btn-outline btn-sm" onclick="openUpdateForm(\'' + r.id + '\')">Post update</button>' +
-    '<button class="btn btn-outline btn-sm" onclick="goToJourney()">Take journey</button>' +
     '<button class="btn btn-outline btn-sm" onclick="markAnswered(\'' + r.id + '\')">✓ Answered</button>' +
     '</div>' : '') +
     '</div>';
@@ -1021,10 +1047,20 @@ async function markPraying(requestId, btn) {
   if (!error) {
     btn.textContent = '🤲 Praying';
     btn.className = 'btn btn-pray btn-sm btn-prayed';
-    var countEl = document.getElementById('ack-count-' + requestId);
-    if (countEl) {
-      var cur = parseInt(countEl.textContent.replace(/\D/g, '')) || 0;
-      countEl.textContent = '🤲 ' + (cur + 1) + ' praying';
+    // Update local cache and re-render acks display
+    var cached = _reqCache[requestId];
+    if (cached) {
+      if (!cached.acknowledgments) cached.acknowledgments = [];
+      cached.acknowledgments.push({
+        user_id: _user.id,
+        profiles: { name: _profile ? _profile.name : '?', avatar_url: _profile ? _profile.avatar_url : null }
+      });
+      var ackEl = document.getElementById('ack-count-' + requestId);
+      if (ackEl) {
+        var tmp = document.createElement('div');
+        tmp.innerHTML = prayerAcksHtml(cached.acknowledgments, requestId);
+        ackEl.parentNode.replaceChild(tmp.firstChild, ackEl);
+      }
     }
   } else {
     btn.disabled = false; btn.textContent = '🤲 I prayed';
@@ -1049,17 +1085,18 @@ async function submitRequest(journey) {
   var btn = document.getElementById('btn-post');
   btn.disabled = true; btn.textContent = 'Posting...';
 
-  var { error } = await _sb.from('requests').insert({ group_id: _group.id, user_id: _user.id, body: text });
+  var { data: inserted, error } = await _sb.from('requests').insert({ group_id: _group.id, user_id: _user.id, body: text }).select('id').single();
   btn.disabled = false; btn.textContent = 'Post to Group';
 
   if (error) { showErr(errEl, error.message); return; }
 
-  // Notify group members via SMS (fire and forget)
+  // Notify group members via push + SMS (fire and forget)
+  var reqId = inserted ? inserted.id : null;
   apiHeaders().then(function(h) {
     fetch('/api/notify', {
       method: 'POST',
       headers: h,
-      body: JSON.stringify({ groupId: _group.id, requesterName: _profile.name, requestPreview: text })
+      body: JSON.stringify({ groupId: _group.id, requesterName: _profile.name, requestPreview: text, requestId: reqId })
     }).catch(function() {});
   });
 
@@ -1101,6 +1138,84 @@ function goToJourney() {
   if (confirm('Open the Anchored In truth journey in a new tab?')) {
     window.open('https://anchoredin.app/identity.html', '_blank');
   }
+}
+
+// ── COPY PRAYER ──
+async function copyPrayer() {
+  var text = document.getElementById('pray-text').textContent || '';
+  if (!text) return;
+  var btn = document.getElementById('btn-copy-prayer');
+  try {
+    await navigator.clipboard.writeText(text);
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(function() { btn.textContent = 'Copy prayer'; }, 2000); }
+  } catch (e) {
+    // Fallback: select text for manual copy
+    var el = document.getElementById('pray-text');
+    var range = document.createRange();
+    range.selectNodeContents(el);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    if (btn) { btn.textContent = 'Text selected'; setTimeout(function() { btn.textContent = 'Copy prayer'; }, 2000); }
+  }
+}
+
+// ── WELCOME CARD ──
+function maybeShowWelcomeCard() {
+  if (localStorage.getItem('welcomed_' + _group.id)) return;
+  var card = '<div id="welcome-card" class="card" style="background:linear-gradient(135deg,var(--navy) 0%,#2a4a7a 100%);color:#fff;">' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+    '<span style="font-size:28px;">🤝</span>' +
+    '<div><div style="font-weight:700;font-size:16px;">Welcome to ' + esc(_group.name) + '</div>' +
+    '<div style="font-size:12px;opacity:0.7;margin-top:2px;">You\'re in the group</div></div>' +
+    '</div>' +
+    '<div style="font-size:14px;line-height:1.5;opacity:0.9;margin-bottom:14px;">Share what\'s on your heart and pray for others as requests come in. God hears every prayer.</div>' +
+    '<button onclick="dismissWelcome()" style="background:var(--gold);color:var(--navy);border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;">Got it 🙌</button>' +
+    '</div>';
+  document.getElementById('feed-list').insertAdjacentHTML('afterbegin', card);
+}
+
+function dismissWelcome() {
+  localStorage.setItem('welcomed_' + _group.id, '1');
+  var card = document.getElementById('welcome-card');
+  if (card) card.remove();
+}
+
+// ── SOFT PUSH BANNER ──
+function maybeShowPushBanner() {
+  if (!('Notification' in window) || !('PushManager' in window)) return;
+  if (Notification.permission !== 'default') return;
+  if (document.getElementById('push-banner')) return;
+  var banner = document.createElement('div');
+  banner.id = 'push-banner';
+  banner.style.cssText = 'background:var(--navy);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;border-radius:12px;margin:0 0 12px;';
+  banner.innerHTML = '<span style="flex:1;font-size:13px;">🔔 Get notified when someone posts a request</span>' +
+    '<button onclick="enablePushFromBanner()" style="background:var(--gold);color:var(--navy);border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Enable</button>' +
+    '<button onclick="document.getElementById(\'push-banner\').remove()" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:20px;cursor:pointer;padding:0 0 0 4px;line-height:1;">×</button>';
+  var feedList = document.getElementById('feed-list');
+  feedList.parentNode.insertBefore(banner, feedList);
+}
+
+async function enablePushFromBanner() {
+  var banner = document.getElementById('push-banner');
+  if (banner) banner.remove();
+  await registerPush();
+}
+
+// ── DEEP LINK ──
+function checkDeepLink() {
+  var hash = window.location.hash;
+  if (!hash || hash.indexOf('req-') === -1) return;
+  var reqId = hash.replace('#req-', '');
+  setTimeout(function() {
+    var el = document.getElementById('req-' + reqId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.style.outline = '2px solid var(--gold)';
+      el.style.transition = 'outline 0.5s';
+      setTimeout(function() { el.style.outline = ''; }, 2500);
+    }
+  }, 400);
 }
 
 // ── PRAY THE WORD ──

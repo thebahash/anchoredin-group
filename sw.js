@@ -7,7 +7,7 @@ self.addEventListener('push', function(event) {
       icon: '/apple-touch-icon.png',
       badge: '/apple-touch-icon.png',
       tag: data.tag || 'prayer',
-      data: { url: 'https://group.anchoredin.app' }
+      data: { url: 'https://group.anchoredin.app' + (data.requestId ? '#req-' + data.requestId : '') }
     })
   );
 });
