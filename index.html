@@ -441,6 +441,12 @@
       <div id="profile-groups-list"></div>
     </div>
 
+    <div style="margin-top:32px;border-top:1px solid var(--border);padding-top:24px;">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px;">INVITE LINK</div>
+      <div id="profile-invite-link" style="font-size:13px;color:var(--navy);word-break:break-all;margin-bottom:12px;"></div>
+      <button class="btn btn-outline" onclick="inviteMember()" style="width:100%;padding:12px;border-radius:12px;font-size:14px;">Share Invite Link</button>
+    </div>
+
     <div style="margin-top:32px;border-top:1px solid var(--border);padding-top:24px;text-align:center;">
       <button onclick="signOut()" style="background:none;border:none;color:#c00;font-size:14px;cursor:pointer;padding:8px;">Sign out</button>
     </div>
@@ -1376,6 +1382,15 @@ async function openProfile() {
   }).join('');
 
   document.getElementById('profile-groups-list').innerHTML = html || '<div style="color:var(--muted);font-size:14px;">No groups yet.</div>';
+
+  // Invite link for current group
+  var inviteEl = document.getElementById('profile-invite-link');
+  if (_group && _group.invite_code) {
+    inviteEl.textContent = 'https://group.anchoredin.app/?join=' + _group.invite_code;
+  } else {
+    inviteEl.textContent = '';
+  }
+
   showScreen('screen-profile');
 }
 
