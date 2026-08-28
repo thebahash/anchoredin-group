@@ -897,18 +897,10 @@ async function loadMembers() {
 
   document.getElementById('members-loading').style.display = 'none';
 
-  var leaders = (members || []).filter(function(m) { return m.role === 'leader'; });
-  var regular = (members || []).filter(function(m) { return m.role === 'member'; });
-
   var html = '';
-  if (leaders.length) {
-    html += '<div class="section-label">Leaders</div><div class="card" style="padding:8px 16px;">';
-    html += leaders.map(function(m) { return renderMemberRow(m); }).join('');
-    html += '</div>';
-  }
-  if (regular.length) {
-    html += '<div class="section-label">Members</div><div class="card" style="padding:8px 16px;">';
-    html += regular.map(function(m) { return renderMemberRow(m); }).join('');
+  if ((members || []).length) {
+    html += '<div class="card" style="padding:8px 16px;">';
+    html += members.map(function(m) { return renderMemberRow(m); }).join('');
     html += '</div>';
   }
 
@@ -1038,7 +1030,6 @@ function renderMemberRow(m) {
     avatarHtml(name, m.profiles ? m.profiles.avatar_url : null, isMe ? 'background:var(--gold);color:var(--navy);' : '') +
     '<div class="member-info">' +
     '<div class="member-name">' + esc(name) + (isMe ? ' <span style="color:var(--muted);font-weight:400;">(you)</span>' : '') + '</div>' +
-    (m.role === 'leader' ? '<div class="member-role">Leader</div>' : '') +
     '</div>' +
     (!isMe ? '<div class="member-actions"><button class="icon-btn" onclick="event.stopPropagation();textMember(\'' + (m.profiles ? m.profiles.phone : '') + '\')" title="Text">💬</button></div>' : '') +
     '</div>';
