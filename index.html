@@ -375,20 +375,33 @@
     <h1>Pray the Word</h1>
   </header>
   <div class="scroll-body">
+    <!-- Loading state (reused for both steps) -->
     <div id="pray-loading" style="text-align:center;padding:40px 0;">
       <div style="font-size:36px;margin-bottom:12px;">🕊️</div>
-      <div style="color:var(--muted);font-size:14px;">Preparing a prayer...</div>
+      <div style="color:var(--muted);font-size:14px;" id="pray-loading-text">Finding verses...</div>
     </div>
-    <div id="pray-result" style="display:none;">
-      <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">For</div>
+
+    <!-- Content (shown after verses load) -->
+    <div id="pray-content" style="display:none;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">For</div>
       <div class="card" style="font-size:15px;line-height:1.6;color:var(--muted);font-style:italic;" id="pray-request-preview"></div>
-      <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin:16px 0 10px;">Scripture-based prayer</div>
-      <div class="card" style="font-size:16px;line-height:1.8;color:var(--text);" id="pray-text"></div>
-      <div style="margin-top:16px;display:flex;gap:10px;">
-        <button class="btn-primary" onclick="prayTheWord(_prayRequest)" style="flex:1;">Generate another</button>
-        <button class="btn btn-outline" onclick="copyPrayer()" id="btn-copy-prayer" style="flex:1;">Copy prayer</button>
+
+      <!-- Step 1: Verses -->
+      <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin:20px 0 10px;">Scripture</div>
+      <div id="pray-verses-list"></div>
+      <button class="btn-primary" id="btn-pray-using-verses" onclick="prayUsingVerses()" style="margin-top:4px;">Pray using these verses &#8594;</button>
+
+      <!-- Step 2: Prayer (hidden until generated) -->
+      <div id="pray-prayer-section" style="display:none;margin-top:24px;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">Prayer</div>
+        <div class="card" style="font-size:16px;line-height:1.8;color:var(--text);" id="pray-text"></div>
+        <div style="margin-top:14px;display:flex;gap:10px;">
+          <button class="btn btn-outline" onclick="prayTheWord(_prayRequest)" style="flex:1;">New verses</button>
+          <button class="btn btn-outline" onclick="copyPrayer()" id="btn-copy-prayer" style="flex:1;">Copy prayer</button>
+        </div>
       </div>
     </div>
+
     <div id="pray-error" class="error-msg" style="display:none;margin-top:20px;"></div>
   </div>
 </div>
@@ -1220,12 +1233,18 @@ function checkDeepLink() {
 
 // ── PRAY THE WORD ──
 var _prayRequest = null;
+var _prayVerses = [];
 
 async function prayTheWord(request) {
   _prayRequest = request;
+  _prayVerses = [];
   showScreen('screen-pray');
+
+  // Reset UI
   document.getElementById('pray-loading').style.display = 'block';
-  document.getElementById('pray-result').style.display = 'none';
+  document.getElementById('pray-loading-text').textContent = 'Finding verses...';
+  document.getElementById('pray-content').style.display = 'none';
+  document.getElementById('pray-prayer-section').style.display = 'none';
   document.getElementById('pray-error').style.display = 'none';
   document.getElementById('pray-request-preview').textContent = request.body;
 
@@ -1234,20 +1253,64 @@ async function prayTheWord(request) {
       method: 'POST',
       headers: await apiHeaders(),
       body: JSON.stringify({
+        action: 'verses',
         requestText: request.body,
         requesterName: request.profiles ? request.profiles.name : 'Someone'
       })
     });
     var data = await res.json();
     document.getElementById('pray-loading').style.display = 'none';
+
+    if (data.verses && data.verses.length) {
+      _prayVerses = data.verses;
+      var html = data.verses.map(function(v) {
+        return '<div class="card" style="margin-bottom:10px;">' +
+          '<div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:6px;">' + esc(v.reference) + '</div>' +
+          '<div style="font-size:15px;line-height:1.6;color:var(--text);font-style:italic;">' + esc(v.text) + '</div>' +
+          '</div>';
+      }).join('');
+      document.getElementById('pray-verses-list').innerHTML = html;
+      document.getElementById('pray-content').style.display = 'block';
+    } else {
+      showErr(document.getElementById('pray-error'), data.error || 'Could not find verses. Try again.');
+    }
+  } catch (e) {
+    document.getElementById('pray-loading').style.display = 'none';
+    showErr(document.getElementById('pray-error'), 'Could not load verses. Try again.');
+  }
+}
+
+async function prayUsingVerses() {
+  var btn = document.getElementById('btn-pray-using-verses');
+  btn.disabled = true;
+  document.getElementById('pray-loading').style.display = 'block';
+  document.getElementById('pray-loading-text').textContent = 'Crafting prayer...';
+  document.getElementById('pray-prayer-section').style.display = 'none';
+
+  try {
+    var res = await fetch('/api/pray', {
+      method: 'POST',
+      headers: await apiHeaders(),
+      body: JSON.stringify({
+        action: 'prayer',
+        requestText: _prayRequest.body,
+        requesterName: _prayRequest.profiles ? _prayRequest.profiles.name : 'Someone',
+        verses: _prayVerses
+      })
+    });
+    var data = await res.json();
+    document.getElementById('pray-loading').style.display = 'none';
+    btn.disabled = false;
+
     if (data.prayer) {
       document.getElementById('pray-text').textContent = data.prayer;
-      document.getElementById('pray-result').style.display = 'block';
+      document.getElementById('pray-prayer-section').style.display = 'block';
     } else {
       showErr(document.getElementById('pray-error'), data.error || 'Something went wrong.');
     }
   } catch (e) {
     document.getElementById('pray-loading').style.display = 'none';
+    btn.disabled = false;
     showErr(document.getElementById('pray-error'), 'Could not generate prayer. Try again.');
   }
 }
