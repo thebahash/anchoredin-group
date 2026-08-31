@@ -1,5 +1,21 @@
 import { getAuthUserId } from './_auth.js';
 
+async function lookupVerse(reference, apiKey, bibleId) {
+  try {
+    var url = 'https://api.scripture.api.bible/v1/bibles/' + bibleId + '/search?query=' + encodeURIComponent(reference) + '&limit=1&sort=relevance';
+    var resp = await fetch(url, { headers: { 'api-key': apiKey } });
+    if (!resp.ok) return null;
+    var data = await resp.json();
+    if (data.data && data.data.verses && data.data.verses.length > 0) {
+      var v = data.data.verses[0];
+      // Strip any HTML tags or verse number brackets the API may include
+      var text = v.text.replace(/<[^>]*>/g, '').replace(/\[\d+\]/g, '').replace(/\s+/g, ' ').trim();
+      return { reference: v.reference || reference, text: text };
+    }
+  } catch (e) {}
+  return null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
@@ -13,7 +29,7 @@ export default async function handler(req, res) {
 
   try {
     if (action === 'verses') {
-      // Step 1: return 2-3 relevant Bible verses as structured JSON
+      // Step 1: AI picks the best references + provides fallback text
       const systemPrompt = 'You are a Bible scholar. Given a prayer request, return 2-3 relevant Bible verses. Respond with ONLY a valid JSON array — no other text, no markdown, no explanation. Format: [{"reference": "Isaiah 41:10", "text": "Do not fear, for I am with you; do not be dismayed, for I am your God. I will strengthen you and help you; I will uphold you with my righteous right hand."}]';
 
       const userPrompt = 'Prayer request: ' + requestText;
@@ -38,22 +54,36 @@ export default async function handler(req, res) {
       if (!data.content || !data.content[0]) return res.status(500).json({ error: 'No response from API' });
 
       const raw = data.content[0].text.trim();
-
-      // Extract JSON array defensively
       const match = raw.match(/\[[\s\S]*\]/);
       if (!match) return res.status(500).json({ error: 'Could not parse verses response' });
 
-      let versesArr;
+      let aiVerses;
       try {
-        versesArr = JSON.parse(match[0]);
+        aiVerses = JSON.parse(match[0]);
       } catch (e) {
         return res.status(500).json({ error: 'Invalid JSON from API' });
       }
 
-      return res.json({ verses: versesArr });
+      // Step 2: verify each verse text via API.Bible (fall back to AI text if lookup fails)
+      const apiKey = process.env.BIBLE_API_KEY;
+      const bibleId = process.env.BIBLE_ID;
+
+      let finalVerses;
+      if (apiKey && bibleId) {
+        const lookups = await Promise.all(aiVerses.map(function(v) {
+          return lookupVerse(v.reference, apiKey, bibleId);
+        }));
+        finalVerses = aiVerses.map(function(v, i) {
+          return lookups[i] || v;
+        });
+      } else {
+        finalVerses = aiVerses;
+      }
+
+      return res.json({ verses: finalVerses });
 
     } else {
-      // Step 2: generate a prayer rooted in the provided verses
+      // Step 3: generate a prayer rooted in the verified verses
       const verseList = (verses || []).map(function(v) {
         return '"' + v.text + '" (' + v.reference + ')';
       }).join('\n');
