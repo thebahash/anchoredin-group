@@ -1048,6 +1048,7 @@ function renderRequestCard(r, isOwner) {
     (isOwner ? '<div class="btn-row">' +
     '<button class="btn btn-outline btn-sm" onclick="openUpdateForm(\'' + r.id + '\')">Post update</button>' +
     '<button class="btn btn-outline btn-sm" onclick="markAnswered(\'' + r.id + '\')">✓ Answered</button>' +
+    '<button class="btn btn-sm" onclick="deleteRequest(\'' + r.id + '\')" style="background:none;border:1px solid #e0c0c0;color:#c00;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;">Delete</button>' +
     '</div>' : '') +
     '</div>';
 }
@@ -1172,6 +1173,12 @@ async function markAnswered(requestId) {
   if (!confirm('Mark this as answered? It will move to the Answered tab.')) return;
   await _sb.from('requests').update({ is_answered: true }).eq('id', requestId);
   switchTab('answered');
+}
+
+async function deleteRequest(requestId) {
+  if (!confirm('Delete this request? This cannot be undone.')) return;
+  await _sb.from('requests').delete().eq('id', requestId);
+  loadFeed(true);
 }
 
 function goToJourney() {
