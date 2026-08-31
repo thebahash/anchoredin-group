@@ -165,7 +165,14 @@
       <button class="btn-primary" id="btn-send-otp" onclick="sendOTP()">Send code →</button>
       <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:10px;">Returning member? Leave your name blank.</p>
       <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:16px;line-height:1.6;">By continuing you agree to our <a href="/privacy.html" style="color:var(--gold);">Privacy Policy</a>.<br>Questions? <a href="mailto:hello@anchoredin.app" style="color:var(--gold);">hello@anchoredin.app</a></p>
-      <div style="text-align:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--border);">
+      <div style="text-align:center;margin-top:24px;">
+        <button onclick="shareApp()" style="display:inline-flex;align-items:center;gap:8px;background:none;border:1.5px solid var(--border);border-radius:100px;padding:10px 20px;font-size:14px;font-weight:600;color:var(--navy);cursor:pointer;" id="btn-share-app">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share with your group
+        </button>
+      </div>
+
+      <div style="text-align:center;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
         <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em;">Also from Anchored In</div>
         <a href="https://anchoredin.app" style="font-size:14px;font-weight:700;color:var(--navy);text-decoration:none;">anchoredin.app →</a>
         <div style="font-size:12px;color:var(--muted);margin-top:3px;">Truth & identity tools for your personal walk</div>
@@ -1477,6 +1484,21 @@ function inviteMember() {
     navigator.share({ title: 'Join ' + _group.name, url: link, text: msg }).catch(function() {});
   } else {
     navigator.clipboard && navigator.clipboard.writeText(link).then(function() { alert('Link copied!'); });
+  }
+}
+
+function shareApp() {
+  var url = 'https://group.anchoredin.app';
+  var msg = 'Pray for each other with Anchored In Group — share requests, see who’s covering you, and pray the Word together.';
+  if (navigator.share) {
+    navigator.share({ title: 'Anchored In Group', url: url, text: msg }).catch(function() {});
+  } else {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(function() {
+        var btn = document.getElementById('btn-share-app');
+        if (btn) { btn.textContent = 'Link copied!'; setTimeout(function() { btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share with your group'; }, 2000); }
+      });
+    }
   }
 }
 
