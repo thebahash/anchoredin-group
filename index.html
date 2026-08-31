@@ -109,7 +109,8 @@
 <div class="screen active" id="screen-loading">
   <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;">
     <div style="font-size:28px;font-weight:800;color:var(--navy);">Anchored In</div>
-    <div style="color:var(--muted);font-size:14px;">Loading...</div>
+    <div style="font-size:13px;font-weight:700;color:var(--gold);letter-spacing:0.12em;text-transform:uppercase;margin-top:2px;">Group</div>
+    <div style="color:var(--muted);font-size:14px;margin-top:8px;">Loading...</div>
   </div>
 </div>
 
@@ -249,7 +250,8 @@
       <div style="font-size:12px;font-weight:700;color:var(--gold-light);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">Your Groups</div>
       <div id="group-switcher-list"></div>
       <div style="border-top:1px solid rgba(255,255,255,0.1);margin-top:8px;padding-top:8px;">
-        <button onclick="closeGroupDrawer();showScreen('screen-group');" style="width:100%;background:none;border:none;color:rgba(255,255,255,0.6);font-size:14px;padding:12px 0;cursor:pointer;text-align:left;">+ Join another group</button>
+        <button onclick="closeGroupDrawer();showScreen('screen-group');" style="width:100%;background:none;border:none;color:rgba(255,255,255,0.6);font-size:14px;padding:10px 0;cursor:pointer;text-align:left;">+ Join another group</button>
+        <button onclick="closeGroupDrawer();openProfile();setTimeout(function(){document.getElementById('create-group-form').style.display='block';document.getElementById('new-group-name').focus();},300);" style="width:100%;background:none;border:none;color:rgba(255,255,255,0.6);font-size:14px;padding:10px 0;cursor:pointer;text-align:left;">+ Create a new group</button>
       </div>
     </div>
   </div>
