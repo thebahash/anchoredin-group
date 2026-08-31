@@ -914,9 +914,7 @@ async function loadMembers() {
   // Show invite card
   var joinLink = 'https://group.anchoredin.app/?join=' + _group.invite_code;
   html += '<div class="card" style="text-align:center;">' +
-    '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">Invite Link</div>' +
-    '<div style="font-size:13px;color:var(--navy);margin-bottom:12px;word-break:break-all;">' + esc(joinLink) + '</div>' +
-    '<button onclick="inviteMember()" class="btn-primary" style="margin-top:0;">Share Invite Link</button>' +
+    '<button onclick="inviteMember()" class="btn-primary" style="margin-top:0;">Invite someone to this group</button>' +
     '</div>';
 
   document.getElementById('members-list').innerHTML = html;
