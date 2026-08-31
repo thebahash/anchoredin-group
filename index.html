@@ -1486,6 +1486,19 @@ async function leaveGroup(groupId, groupName) {
   }
 }
 
+async function leaveActiveGroup() {
+  if (!confirm('Leave ' + _group.name + '? You can rejoin with the invite code.')) return;
+  await _sb.from('members').delete().eq('group_id', _group.id).eq('user_id', _user.id);
+  await loadUserContext();
+}
+
+async function removeMember(userId, name) {
+  if (!confirm('Remove ' + name + ' from ' + _group.name + '?')) return;
+  await _sb.from('members').delete().eq('group_id', _group.id).eq('user_id', userId);
+  showScreen('screen-main');
+  switchTab('members');
+}
+
 async function signOut() {
   if (!confirm('Sign out?')) return;
   await _sb.auth.signOut();
@@ -1520,10 +1533,17 @@ async function showMemberDetail(name, userId, role) {
   }
 
   if (isLeader && !isMe) {
-    html += '<div style="margin-top:16px;">' +
+    html += '<div style="margin-top:16px;display:flex;gap:8px;">' +
       (role === 'member'
         ? '<button class="btn btn-outline" onclick="promoteLeader(\'' + userId + '\')">Make leader</button>'
         : '<button class="btn btn-outline" onclick="demoteLeader(\'' + userId + '\')">Remove leader</button>') +
+      '<button class="btn btn-sm" onclick="removeMember(\'' + userId + '\', \'' + esc(name) + '\')" style="background:none;border:1px solid #e0c0c0;color:#c00;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;">Remove</button>' +
+      '</div>';
+  }
+
+  if (isMe) {
+    html += '<div style="margin-top:32px;text-align:center;border-top:1px solid var(--border);padding-top:20px;">' +
+      '<button onclick="leaveActiveGroup()" style="background:none;border:none;color:#c00;font-size:13px;cursor:pointer;">Leave this group</button>' +
       '</div>';
   }
 
