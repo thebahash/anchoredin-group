@@ -298,10 +298,7 @@
     <div class="scroll-body">
       <div class="loading" id="members-loading">Loading...</div>
       <div id="members-list"></div>
-      <div style="text-align:center;padding:8px 0 4px;">
-        <button class="btn btn-outline" onclick="inviteMember()">+ Invite someone to this group</button>
-      </div>
-      <div style="text-align:center;padding:4px 0 20px;">
+      <div style="text-align:center;padding:8px 0 20px;">
         <button onclick="textGroup()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:8px;">💬 Text the group</button>
       </div>
       <div style="margin:0 16px 28px;padding:16px;background:#f5f3ee;border-radius:14px;text-align:center;">
@@ -451,6 +448,10 @@
     <div style="margin-top:32px;border-top:1px solid var(--border);padding-top:24px;">
       <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px;">GROUPS</div>
       <div id="profile-groups-list"></div>
+    </div>
+
+    <div style="margin-top:32px;border-top:1px solid var(--border);padding-top:24px;">
+      <button class="btn-primary" onclick="inviteMember()" style="width:100%;padding:14px;border-radius:12px;font-size:15px;">Invite someone to this group</button>
     </div>
 
     <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:24px;text-align:center;">
