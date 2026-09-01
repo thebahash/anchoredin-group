@@ -587,10 +587,15 @@ async function sendOTP() {
   var btn = document.getElementById('btn-send-otp');
   btn.disabled = true; btn.textContent = 'Sending...';
 
-  var { error } = await _sb.auth.signInWithOtp({ phone });
+  var otpRes = await fetch('/api/send-otp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: phone })
+  });
+  var otpData = await otpRes.json();
   btn.disabled = false; btn.textContent = 'Send code';
 
-  if (error) { showErr(errEl, error.message); return; }
+  if (!otpRes.ok || otpData.error) { showErr(errEl, otpData.error || 'Failed to send code.'); return; }
 
   localStorage.setItem('pending_name', name);
   localStorage.setItem('pending_phone', phone);
@@ -610,20 +615,25 @@ async function verifyOTP() {
   var btn = document.getElementById('btn-verify-otp');
   btn.disabled = true; btn.textContent = 'Verifying...';
 
-  var { data, error } = await _sb.auth.verifyOtp({ phone, token, type: 'sms' });
+  var verifyRes = await fetch('/api/verify-otp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: phone, code: token, name: name })
+  });
+  var verifyData = await verifyRes.json();
   btn.disabled = false; btn.textContent = 'Verify';
 
-  if (error) { showErr(errEl, error.message); return; }
+  if (!verifyRes.ok || verifyData.error) { showErr(errEl, verifyData.error || 'Verification failed.'); return; }
 
-  _user = data.user;
+  await _sb.auth.setSession(verifyData.session);
+  _user = verifyData.user;
 
-  // Check for existing profile first
+  // Load profile (created server-side for new users)
   var { data: existingProfile } = await _sb.from('profiles').select('*').eq('id', _user.id).single();
   if (existingProfile) {
-    // Returning user — use existing profile, no name needed
     _profile = existingProfile;
   } else {
-    // New user — name is required
+    // Profile not yet created (name was blank) — create minimal one now
     if (!name) {
       showErr(errEl, 'Welcome! Please go back and enter your name to create your account.');
       await _sb.auth.signOut();
