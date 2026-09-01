@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
@@ -9,24 +7,37 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid phone number' });
   }
 
-  var sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+  var sbUrl = process.env.SUPABASE_URL;
+  var sbKey = process.env.SUPABASE_SERVICE_KEY;
+  var restHeaders = {
+    'apikey': sbKey,
+    'Authorization': 'Bearer ' + sbKey,
+    'Content-Type': 'application/json',
+    'Prefer': 'resolution=merge-duplicates'
+  };
 
   // Generate 6-digit code
   var code = String(Math.floor(100000 + Math.random() * 900000));
   var expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-  var { error: dbErr } = await sb
-    .from('otp_codes')
-    .upsert({ phone: digits, code: code, expires_at: expiresAt, attempts: 0 });
+  // Upsert code into otp_codes table
+  var dbRes = await fetch(sbUrl + '/rest/v1/otp_codes', {
+    method: 'POST',
+    headers: restHeaders,
+    body: JSON.stringify({ phone: digits, code: code, expires_at: expiresAt, attempts: 0 })
+  });
 
-  if (dbErr) return res.status(500).json({ error: 'Failed to store code' });
+  if (!dbRes.ok) {
+    var dbErr = await dbRes.json().catch(function() { return {}; });
+    console.error('DB error:', dbErr);
+    return res.status(500).json({ error: 'Failed to store code' });
+  }
 
   var accountSid = process.env.TWILIO_ACCOUNT_SID;
   var authToken = process.env.TWILIO_AUTH_TOKEN;
   var from = process.env.TWILIO_PHONE_NUMBER;
 
   if (!accountSid || !authToken || !from) {
-    // Dev mode: log the code
     console.log('OTP for ' + digits + ': ' + code);
     return res.json({ ok: true });
   }
@@ -50,8 +61,8 @@ export default async function handler(req, res) {
   );
 
   if (!twilioRes.ok) {
-    var errBody = await twilioRes.json().catch(function() { return {}; });
-    console.error('Twilio error:', errBody);
+    var twilioErr = await twilioRes.json().catch(function() { return {}; });
+    console.error('Twilio error:', twilioErr);
     return res.status(502).json({ error: 'Failed to send SMS. Please check your number and try again.' });
   }
 
