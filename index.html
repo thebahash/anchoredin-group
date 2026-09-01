@@ -593,12 +593,18 @@ async function sendOTP() {
   var btn = document.getElementById('btn-send-otp');
   btn.disabled = true; btn.textContent = 'Sending...';
 
-  var otpRes = await fetch('/api/send-otp', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone: phone })
-  });
-  var otpData = await otpRes.json();
+  var otpRes, otpData;
+  try {
+    otpRes = await fetch('/api/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone })
+    });
+    otpData = await otpRes.json();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Send code';
+    showErr(errEl, 'Network error. Please try again.'); return;
+  }
   btn.disabled = false; btn.textContent = 'Send code';
 
   if (!otpRes.ok || otpData.error) { showErr(errEl, otpData.error || 'Failed to send code.'); return; }
