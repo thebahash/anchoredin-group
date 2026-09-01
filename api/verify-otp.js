@@ -64,7 +64,7 @@ export default async function handler(req, res) {
   var secret = process.env.OTP_PASSWORD_SECRET || 'anchored-group-otp-secret';
   var password = makePassword(phoneE164, secret);
 
-  // Try signing in with existing account
+  // Try signing in with phone + deterministic password
   var signInRes = await fetch(sbUrl + '/auth/v1/token?grant_type=password', {
     method: 'POST',
     headers: { 'apikey': anonKey, 'Content-Type': 'application/json' },
@@ -73,7 +73,7 @@ export default async function handler(req, res) {
   var signInData = await signInRes.json().catch(function() { return {}; });
 
   if (!signInRes.ok || signInData.error) {
-    // Try creating the user
+    // User doesn't exist or has old auth — create them
     var createRes = await fetch(sbUrl + '/auth/v1/admin/users', {
       method: 'POST',
       headers: serviceHeaders,
@@ -82,8 +82,7 @@ export default async function handler(req, res) {
     var createData = await createRes.json().catch(function() { return {}; });
 
     if (!createRes.ok || createData.error) {
-      // User exists from old auth method — paginate to find them by phone
-      // Try multiple formats since Supabase may store phone differently
+      // User exists with old auth — find and update their password
       var last10 = phoneE164.replace(/\D/g, '').slice(-10);
       var existingUser = null;
       var page = 1;
@@ -94,22 +93,19 @@ export default async function handler(req, res) {
         );
         var listData = await listRes.json().catch(function() { return {}; });
         var users = listData.users || [];
-        console.log('Searching page ' + page + ', users:', users.map(function(u) { return u.phone; }));
         existingUser = users.find(function(u) {
           if (!u.phone) return false;
-          var storedDigits = u.phone.replace(/\D/g, '');
-          return storedDigits.slice(-10) === last10;
+          return u.phone.replace(/\D/g, '').slice(-10) === last10;
         });
         if (existingUser || users.length < 100) break;
         page++;
       }
 
       if (!existingUser) {
-        console.error('Phone exists but user not found. last10:', last10, 'createData:', createData);
+        console.error('User not found for phone:', phoneE164);
         return res.status(500).json({ error: 'Failed to locate account' });
       }
 
-      // Update their password to match our new system
       var updateRes = await fetch(sbUrl + '/auth/v1/admin/users/' + existingUser.id, {
         method: 'PUT',
         headers: serviceHeaders,
@@ -120,7 +116,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Sign in (whether newly created or password updated)
+    // Sign in after create/update
     signInRes = await fetch(sbUrl + '/auth/v1/token?grant_type=password', {
       method: 'POST',
       headers: { 'apikey': anonKey, 'Content-Type': 'application/json' },
