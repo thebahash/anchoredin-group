@@ -73,7 +73,7 @@ export default async function handler(req, res) {
   var signInData = await signInRes.json().catch(function() { return {}; });
 
   if (!signInRes.ok || signInData.error) {
-    // User doesn't exist — create them
+    // Try creating the user
     var createRes = await fetch(sbUrl + '/auth/v1/admin/users', {
       method: 'POST',
       headers: serviceHeaders,
@@ -82,11 +82,33 @@ export default async function handler(req, res) {
     var createData = await createRes.json().catch(function() { return {}; });
 
     if (!createRes.ok || createData.error) {
-      console.error('Create user error:', createData);
-      return res.status(500).json({ error: 'Failed to create account' });
+      // User likely exists from old auth method — find them and update password
+      var listRes = await fetch(
+        sbUrl + '/auth/v1/admin/users?filter=' + encodeURIComponent('phone=' + phoneE164),
+        { headers: serviceHeaders }
+      );
+      var listData = await listRes.json().catch(function() { return {}; });
+      var existingUser = listData.users && listData.users.find(function(u) {
+        return u.phone === phoneE164;
+      });
+
+      if (!existingUser) {
+        console.error('Create error and user not found:', createData);
+        return res.status(500).json({ error: 'Failed to create account' });
+      }
+
+      // Update their password to match our new system
+      var updateRes = await fetch(sbUrl + '/auth/v1/admin/users/' + existingUser.id, {
+        method: 'PUT',
+        headers: serviceHeaders,
+        body: JSON.stringify({ password: password, phone_confirm: true })
+      });
+      if (!updateRes.ok) {
+        return res.status(500).json({ error: 'Failed to update account' });
+      }
     }
 
-    // Sign in the new user
+    // Sign in (whether newly created or password updated)
     signInRes = await fetch(sbUrl + '/auth/v1/token?grant_type=password', {
       method: 'POST',
       headers: { 'apikey': anonKey, 'Content-Type': 'application/json' },
@@ -96,7 +118,7 @@ export default async function handler(req, res) {
 
     if (!signInRes.ok || signInData.error) {
       console.error('Sign-in error:', signInData);
-      return res.status(500).json({ error: 'Sign-in failed after account creation' });
+      return res.status(500).json({ error: 'Sign-in failed' });
     }
   }
 
