@@ -82,19 +82,24 @@ export default async function handler(req, res) {
     var createData = await createRes.json().catch(function() { return {}; });
 
     if (!createRes.ok || createData.error) {
-      // User likely exists from old auth method — find them and update password
-      var listRes = await fetch(
-        sbUrl + '/auth/v1/admin/users?filter=' + encodeURIComponent('phone=' + phoneE164),
-        { headers: serviceHeaders }
-      );
-      var listData = await listRes.json().catch(function() { return {}; });
-      var existingUser = listData.users && listData.users.find(function(u) {
-        return u.phone === phoneE164;
-      });
+      // User exists from old auth method — paginate to find them by phone
+      var existingUser = null;
+      var page = 1;
+      while (!existingUser) {
+        var listRes = await fetch(
+          sbUrl + '/auth/v1/admin/users?page=' + page + '&per_page=100',
+          { headers: serviceHeaders }
+        );
+        var listData = await listRes.json().catch(function() { return {}; });
+        var users = listData.users || [];
+        existingUser = users.find(function(u) { return u.phone === phoneE164; });
+        if (existingUser || users.length < 100) break;
+        page++;
+      }
 
       if (!existingUser) {
-        console.error('Create error and user not found:', createData);
-        return res.status(500).json({ error: 'Failed to create account' });
+        console.error('Phone exists but user not found:', createData);
+        return res.status(500).json({ error: 'Failed to locate account' });
       }
 
       // Update their password to match our new system
