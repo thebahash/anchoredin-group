@@ -83,6 +83,8 @@ export default async function handler(req, res) {
 
     if (!createRes.ok || createData.error) {
       // User exists from old auth method — paginate to find them by phone
+      // Try multiple formats since Supabase may store phone differently
+      var last10 = phoneE164.replace(/\D/g, '').slice(-10);
       var existingUser = null;
       var page = 1;
       while (!existingUser) {
@@ -92,13 +94,18 @@ export default async function handler(req, res) {
         );
         var listData = await listRes.json().catch(function() { return {}; });
         var users = listData.users || [];
-        existingUser = users.find(function(u) { return u.phone === phoneE164; });
+        console.log('Searching page ' + page + ', users:', users.map(function(u) { return u.phone; }));
+        existingUser = users.find(function(u) {
+          if (!u.phone) return false;
+          var storedDigits = u.phone.replace(/\D/g, '');
+          return storedDigits.slice(-10) === last10;
+        });
         if (existingUser || users.length < 100) break;
         page++;
       }
 
       if (!existingUser) {
-        console.error('Phone exists but user not found:', createData);
+        console.error('Phone exists but user not found. last10:', last10, 'createData:', createData);
         return res.status(500).json({ error: 'Failed to locate account' });
       }
 
