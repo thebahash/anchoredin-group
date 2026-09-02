@@ -1,3 +1,4 @@
+import webpush from 'web-push';
 import { getAuthUserId } from './_auth.js';
 
 export default async function handler(req, res) {
@@ -43,7 +44,79 @@ export default async function handler(req, res) {
     const membership = memData && memData[0] ? memData[0] : null;
 
     res.json({ group: group, membership: membership });
+
+    // Notify existing members (fire and forget — don't block response)
+    notifyGroupOfNewMember(sbUrl, sbKey, group.id, userId).catch(function() {});
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+}
+
+async function notifyGroupOfNewMember(sbUrl, sbKey, groupId, newUserId) {
+  var serviceHeaders = { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey };
+
+  // Get new member's name
+  var profileRes = await fetch(
+    sbUrl + '/rest/v1/profiles?id=eq.' + newUserId + '&select=name',
+    { headers: serviceHeaders }
+  );
+  var profiles = await profileRes.json().catch(function() { return []; });
+  var joinerName = (profiles && profiles[0] && profiles[0].name) ? profiles[0].name : 'Someone';
+
+  webpush.setVapidDetails(
+    'mailto:hello@anchoredin.app',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+
+  var pushPayload = JSON.stringify({
+    title: joinerName + ' just joined the group 👋',
+    body: 'Say hello and check out the Members tab.',
+    tag: 'join-' + groupId
+  });
+
+  var twilioSid = process.env.TWILIO_ACCOUNT_SID;
+  var twilioToken = process.env.TWILIO_AUTH_TOKEN;
+  var twilioFrom = process.env.TWILIO_PHONE_NUMBER;
+  var credentials = Buffer.from(twilioSid + ':' + twilioToken).toString('base64');
+  var smsBody = joinerName + ' just joined your Anchored In Group! — group.anchoredin.app';
+
+  var [membersRes, subsRes] = await Promise.all([
+    fetch(sbUrl + '/rest/v1/members?group_id=eq.' + groupId + '&select=user_id,profiles(name,phone)', { headers: serviceHeaders }),
+    fetch(sbUrl + '/rest/v1/push_subscriptions?group_id=eq.' + groupId + '&select=user_id,subscription', { headers: serviceHeaders })
+  ]);
+
+  var members = await membersRes.json().catch(function() { return []; });
+  var subs = await subsRes.json().catch(function() { return []; });
+
+  var subsByUser = {};
+  (subs || []).forEach(function(s) { subsByUser[s.user_id] = s.subscription; });
+
+  var tasks = (members || [])
+    .filter(function(m) { return m.user_id !== newUserId; })
+    .flatMap(function(m) {
+      var profile = m.profiles;
+      if (!profile) return [];
+      var notifications = [];
+      var sub = subsByUser[m.user_id];
+      if (sub) {
+        notifications.push(webpush.sendNotification(sub, pushPayload).catch(function() {}));
+      }
+      if (profile.phone && twilioSid) {
+        var formData = new URLSearchParams();
+        formData.append('To', profile.phone);
+        formData.append('From', twilioFrom);
+        formData.append('Body', smsBody);
+        notifications.push(
+          fetch('https://api.twilio.com/2010-04-01/Accounts/' + twilioSid + '/Messages.json', {
+            method: 'POST',
+            headers: { 'Authorization': 'Basic ' + credentials, 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData.toString()
+          }).catch(function() {})
+        );
+      }
+      return notifications;
+    });
+
+  await Promise.all(tasks);
 }
