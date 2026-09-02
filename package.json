@@ -2,6 +2,7 @@
   "name": "anchoredin-group",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "engines": { "node": "24.x" },
   "dependencies": {
     "web-push": "^3.6.7"
