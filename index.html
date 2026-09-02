@@ -344,12 +344,35 @@
       <label class="form-label">What would you like prayer for?</label>
       <textarea id="post-text" rows="6" placeholder="Share what's on your heart..."></textarea>
     </div>
+    <!-- Options -->
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--navy);cursor:pointer;">
+        <input type="checkbox" id="post-for-other" style="width:18px;height:18px;accent-color:var(--navy);" />
+        This is for someone else (friend, family...)
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--navy);cursor:pointer;">
+        <input type="checkbox" id="post-anonymous" style="width:18px;height:18px;accent-color:var(--navy);" />
+        Post anonymously
+      </label>
+    </div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">This will be visible to everyone in your group.</div>
     <button class="btn-primary" id="btn-post" onclick="submitRequest(null)">Post to Group</button>
     <div style="margin:14px 0;text-align:center;color:var(--muted);font-size:13px;">After posting you can also:</div>
     <button class="btn-gold" onclick="submitRequest('identity')">Post + Take the Truth Journey</button>
     <div style="height:10px;"></div>
     <button class="btn btn-outline" style="width:100%;padding:13px;border-radius:12px;font-size:15px;" onclick="submitRequest('renew')">Post + Renew My Mind (quick)</button>
+  </div>
+</div>
+
+<!-- Answered celebration modal -->
+<div id="answered-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:#fff;border-radius:20px;padding:28px 24px;width:100%;max-width:380px;">
+    <div style="text-align:center;font-size:40px;margin-bottom:10px;">🙌</div>
+    <h2 style="font-size:20px;font-weight:700;color:var(--navy);text-align:center;margin-bottom:8px;">God answered!</h2>
+    <p style="font-size:14px;color:var(--muted);text-align:center;margin-bottom:18px;line-height:1.5;">Share what He did — your group will be encouraged.</p>
+    <textarea id="testimony-text" rows="3" placeholder="What did God do? (optional)" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;resize:none;margin-bottom:14px;"></textarea>
+    <button onclick="confirmAnswered(false)" class="btn-primary" style="margin-bottom:10px;">Share with group 🙌</button>
+    <button onclick="confirmAnswered(true)" style="width:100%;background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:6px;">Just mark as answered</button>
   </div>
 </div>
 
@@ -509,6 +532,7 @@ var _sb = null;
 var _user = null;
 var _profile = null;
 var _membersMap = {};
+var _answeringRequestId = null;
 var _group = null;
 var _membership = null;
 var _currentTab = 'requests';
@@ -880,7 +904,7 @@ async function loadFeed(append) {
 
   var { data: requests } = await _sb
     .from('requests')
-    .select('*, profiles(name, avatar_url), request_updates(*, update_hearts(*)), acknowledgments(*, profiles(name, avatar_url))')
+    .select('*, profiles(name, avatar_url), request_updates(*, update_hearts(*)), acknowledgments(*, profiles(name, avatar_url)), request_amens(user_id)')
     .eq('group_id', _group.id)
     .eq('is_answered', false)
     .order('created_at', { ascending: false })
@@ -934,7 +958,7 @@ async function loadMine() {
 
   var { data: requests } = await _sb
     .from('requests')
-    .select('*, profiles(name, avatar_url), request_updates(*, update_hearts(*)), acknowledgments(*, profiles(name, avatar_url))')
+    .select('*, profiles(name, avatar_url), request_updates(*, update_hearts(*)), acknowledgments(*, profiles(name, avatar_url)), request_amens(user_id)')
     .eq('group_id', _group.id)
     .eq('user_id', _user.id)
     .eq('is_answered', false)
@@ -1010,15 +1034,19 @@ async function loadAnswered() {
   }
 
   document.getElementById('answered-list').innerHTML = requests.map(function(r) {
-    var acks = r.acknowledgments || [];
+    var isOwner = r.user_id === _user.id;
+    var isAnon = r.anonymous && !isOwner;
+    var name = isAnon ? 'Anonymous' : (r.profiles ? r.profiles.name : 'Unknown');
     var updates = (r.request_updates || []).sort(function(a,b) { return new Date(b.created_at) - new Date(a.created_at); });
     var latestUpdate = updates[0];
     return '<div class="card">' +
       '<span class="answered-badge">✓ Answered</span>' +
-      '<div class="req-header">' + avatarHtml(r.profiles ? r.profiles.name : '?', r.profiles ? r.profiles.avatar_url : null) +
-      '<div class="req-meta"><div class="req-name">' + esc(r.profiles ? r.profiles.name : 'Unknown') + '</div>' +
+      (r.for_other ? '<div style="display:inline-block;background:#f0f4ff;color:#4060c0;font-size:11px;font-weight:600;border-radius:10px;padding:2px 9px;margin-bottom:8px;letter-spacing:0.02em;">🙏 Praying for someone</div>' : '') +
+      '<div class="req-header">' + avatarHtml(name, isAnon ? null : (r.profiles ? r.profiles.avatar_url : null), isAnon ? 'background:#ddd;color:#888;' : '') +
+      '<div class="req-meta"><div class="req-name">' + esc(name) + '</div>' +
       '<div class="req-date">' + timeAgo(r.created_at) + '</div></div></div>' +
       '<div class="req-body">' + esc(r.body) + '</div>' +
+      (r.testimony ? '<div style="background:#e6f4ea;border-radius:10px;padding:10px 14px;margin:8px 0;font-size:14px;color:#2d7a3a;line-height:1.5;"><strong>🙌 What God did:</strong> ' + esc(r.testimony) + '</div>' : '') +
       (latestUpdate ? '<div class="update-bubble"><strong>' + (latestUpdate.is_praise ? '🙌 Praise:' : '💬 Reply:') + '</strong> ' + esc(latestUpdate.body) + '<div class="upd-date">' + timeAgo(latestUpdate.created_at) + '</div></div>' : '') +
       '</div>';
   }).join('');
@@ -1059,8 +1087,12 @@ function enrichUpdatesWithHearts(requests) {
 function renderRequestCard(r, isOwner) {
   var acks = r.acknowledgments || [];
   var hasPrayed = acks.some(function(a) { return a.user_id === _user.id; });
+  var amens = r.request_amens || [];
+  var hasAmened = amens.some(function(a) { return a.user_id === _user.id; });
+  var amenCount = amens.length;
   var updates = (r.request_updates || []).sort(function(a,b) { return new Date(a.created_at) - new Date(b.created_at); });
-  var name = isOwner ? 'You' : (r.profiles ? r.profiles.name : 'Unknown');
+  var isAnon = r.anonymous && !isOwner;
+  var name = isOwner ? 'You' : (isAnon ? 'Anonymous' : (r.profiles ? r.profiles.name : 'Unknown'));
 
   var updatesHtml = updates.map(function(u) {
     var heartCount = u.heart_count || 0;
@@ -1076,8 +1108,9 @@ function renderRequestCard(r, isOwner) {
   }).join('');
 
   return '<div class="card" id="req-' + r.id + '">' +
+    (r.for_other ? '<div style="display:inline-block;background:#f0f4ff;color:#4060c0;font-size:11px;font-weight:600;border-radius:10px;padding:2px 9px;margin-bottom:8px;letter-spacing:0.02em;">🙏 Praying for someone</div>' : '') +
     '<div class="req-header">' +
-    avatarHtml(name, r.profiles ? r.profiles.avatar_url : null, isOwner ? 'background:var(--gold);color:var(--navy);' : '') +
+    avatarHtml(name, isAnon ? null : (r.profiles ? r.profiles.avatar_url : null), isOwner ? 'background:var(--gold);color:var(--navy);' : (isAnon ? 'background:#ddd;color:#888;' : '')) +
     '<div class="req-meta"><div class="req-name">' + esc(name) + '</div><div class="req-date">' + timeAgo(r.created_at) + '</div></div>' +
     '</div>' +
     '<div class="req-body">' + esc(r.body) + '</div>' +
@@ -1088,6 +1121,9 @@ function renderRequestCard(r, isOwner) {
     (hasPrayed
       ? '<button class="btn btn-pray btn-sm btn-prayed" disabled>🤲 Praying</button>'
       : '<button class="btn btn-pray btn-sm" onclick="markPraying(\'' + r.id + '\', this)">🤲 I prayed</button>') +
+    (hasAmened
+      ? '<button class="btn btn-pray btn-sm btn-prayed" disabled>🙏 Amen' + (amenCount > 1 ? ' ' + amenCount : '') + '</button>'
+      : '<button class="btn btn-pray btn-sm" onclick="amenRequest(\'' + r.id + '\', this)">🙏 Amen' + (amenCount > 0 ? ' ' + amenCount : '') + '</button>') +
     '<button class="btn btn-word btn-sm" onclick="prayTheWord(_reqCache[\'' + r.id + '\'])">Pray the Word</button>' +
     '</div>' +
     '</div>' +
@@ -1154,7 +1190,11 @@ async function markPraying(requestId, btn) {
   }
 }
 
-function goToPost() { showScreen('screen-post'); }
+function goToPost() {
+  document.getElementById('post-anonymous').checked = false;
+  document.getElementById('post-for-other').checked = false;
+  showScreen('screen-post');
+}
 
 function refreshCurrentTab() {
   if (_currentTab === 'requests') loadFeed();
@@ -1172,22 +1212,28 @@ async function submitRequest(journey) {
   var btn = document.getElementById('btn-post');
   btn.disabled = true; btn.textContent = 'Posting...';
 
-  var { data: inserted, error } = await _sb.from('requests').insert({ group_id: _group.id, user_id: _user.id, body: text }).select('id').single();
+  var anonymous = document.getElementById('post-anonymous').checked;
+  var for_other = document.getElementById('post-for-other').checked;
+
+  var { data: inserted, error } = await _sb.from('requests').insert({ group_id: _group.id, user_id: _user.id, body: text, anonymous: anonymous, for_other: for_other }).select('id').single();
   btn.disabled = false; btn.textContent = 'Post to Group';
 
   if (error) { showErr(errEl, error.message); return; }
 
   // Notify group members via push + SMS (fire and forget)
   var reqId = inserted ? inserted.id : null;
+  var notifyName = anonymous ? 'Someone in your group' : _profile.name;
   apiHeaders().then(function(h) {
     fetch('/api/notify', {
       method: 'POST',
       headers: h,
-      body: JSON.stringify({ groupId: _group.id, requesterName: _profile.name, requestPreview: text, requestId: reqId })
+      body: JSON.stringify({ groupId: _group.id, requesterName: notifyName, requestPreview: text, requestId: reqId })
     }).catch(function() {});
   });
 
   document.getElementById('post-text').value = '';
+  document.getElementById('post-anonymous').checked = false;
+  document.getElementById('post-for-other').checked = false;
 
   if (journey === 'identity') { window.open('https://anchoredin.app/identity.html', '_blank'); }
   else if (journey === 'renew') { window.open('https://anchoredin.app/renew.html', '_blank'); }
@@ -1216,9 +1262,52 @@ async function submitUpdate() {
 }
 
 async function markAnswered(requestId) {
-  if (!confirm('Mark this as answered? It will move to the Answered tab.')) return;
-  await _sb.from('requests').update({ is_answered: true }).eq('id', requestId);
+  _answeringRequestId = requestId;
+  document.getElementById('testimony-text').value = '';
+  document.getElementById('answered-modal').style.display = 'flex';
+}
+
+async function confirmAnswered(skipTestimony) {
+  if (!_answeringRequestId) return;
+  var testimony = skipTestimony ? '' : document.getElementById('testimony-text').value.trim();
+  var requestId = _answeringRequestId;
+  document.getElementById('answered-modal').style.display = 'none';
+  _answeringRequestId = null;
+
+  var updateData = { is_answered: true };
+  if (testimony) updateData.testimony = testimony;
+  await _sb.from('requests').update(updateData).eq('id', requestId);
+
+  var r = _reqCache[requestId];
+  apiHeaders().then(function(h) {
+    fetch('/api/notify-answered', {
+      method: 'POST',
+      headers: h,
+      body: JSON.stringify({
+        groupId: _group.id,
+        name: _profile.name,
+        preview: r ? r.body : '',
+        testimony: testimony,
+        requestId: requestId
+      })
+    }).catch(function() {});
+  });
+
   switchTab('answered');
+}
+
+async function amenRequest(requestId, btn) {
+  btn.disabled = true;
+  var { error } = await _sb.from('request_amens').insert({ request_id: requestId, user_id: _user.id });
+  if (!error) {
+    btn.className = 'btn btn-pray btn-sm btn-prayed';
+    btn.disabled = true;
+    var match = btn.textContent.match(/\d+/);
+    var count = match ? parseInt(match[0]) + 1 : 1;
+    btn.textContent = '🙏 Amen' + (count > 1 ? ' ' + count : '');
+  } else {
+    btn.disabled = false;
+  }
 }
 
 async function deleteRequest(requestId) {
