@@ -16,6 +16,19 @@ export default async function handler(req, res) {
     'Prefer': 'resolution=merge-duplicates'
   };
 
+  // Rate limit: reject if a code was already sent in the last 60 seconds
+  var existingRes = await fetch(
+    sbUrl + '/rest/v1/otp_codes?phone=eq.' + encodeURIComponent(digits) + '&limit=1',
+    { headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey } }
+  );
+  var existingRows = await existingRes.json().catch(function() { return []; });
+  if (existingRows && existingRows[0]) {
+    var minutesLeft = (new Date(existingRows[0].expires_at) - Date.now()) / 60000;
+    if (minutesLeft > 9) {
+      return res.status(429).json({ error: 'Please wait 60 seconds before requesting another code.' });
+    }
+  }
+
   // Generate 6-digit code
   var code = String(Math.floor(100000 + Math.random() * 900000));
   var expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();

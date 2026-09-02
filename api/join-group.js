@@ -23,6 +23,14 @@ export default async function handler(req, res) {
     if (!groups || !groups[0]) return res.status(404).json({ error: 'Group not found. Check the code and try again.' });
     const group = groups[0];
 
+    // Check if already a member (so we don't notify on re-joins)
+    var existingMemRes = await fetch(
+      sbUrl + '/rest/v1/members?group_id=eq.' + group.id + '&user_id=eq.' + userId + '&select=id',
+      { headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey } }
+    );
+    var existingMem = await existingMemRes.json().catch(function() { return []; });
+    var isNewMember = !existingMem || existingMem.length === 0;
+
     // Upsert membership
     await fetch(sbUrl + '/rest/v1/members', {
       method: 'POST',
@@ -43,10 +51,12 @@ export default async function handler(req, res) {
     const memData = await memRes.json();
     const membership = memData && memData[0] ? memData[0] : null;
 
-    res.json({ group: group, membership: membership });
+    // Notify existing members before responding (ensures completion in serverless)
+    if (isNewMember) {
+      await notifyGroupOfNewMember(sbUrl, sbKey, group.id, userId).catch(function() {});
+    }
 
-    // Notify existing members (fire and forget — don't block response)
-    notifyGroupOfNewMember(sbUrl, sbKey, group.id, userId).catch(function() {});
+    res.json({ group: group, membership: membership });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
