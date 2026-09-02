@@ -450,6 +450,13 @@
       <input type="text" id="profile-name" placeholder="Your name" />
     </div>
 
+    <!-- Bio -->
+    <div class="form-group">
+      <label class="form-label">About you <span style="color:var(--muted);font-weight:400;font-size:12px;">(optional)</span></label>
+      <textarea id="profile-bio" placeholder="Share a bit about yourself..." maxlength="120" rows="3" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-family:inherit;resize:none;" oninput="document.getElementById('profile-bio-count').textContent=this.value.length+' / 120'"></textarea>
+      <div id="profile-bio-count" style="text-align:right;font-size:11px;color:var(--muted);margin-top:4px;">0 / 120</div>
+    </div>
+
     <!-- Phone (read-only) -->
     <div class="form-group">
       <label class="form-label">Phone number</label>
@@ -501,6 +508,7 @@
 var _sb = null;
 var _user = null;
 var _profile = null;
+var _membersMap = {};
 var _group = null;
 var _membership = null;
 var _currentTab = 'requests';
@@ -954,6 +962,17 @@ async function loadMembers() {
     .eq('group_id', _group.id)
     .order('role');
 
+  _membersMap = {};
+  (members || []).forEach(function(m) {
+    _membersMap[m.user_id] = {
+      name: m.profiles ? (m.profiles.name || 'Unknown') : 'Unknown',
+      phone: m.profiles ? (m.profiles.phone || '') : '',
+      bio: m.profiles ? (m.profiles.bio || '') : '',
+      avatar_url: m.profiles ? (m.profiles.avatar_url || null) : null,
+      role: m.role
+    };
+  });
+
   document.getElementById('members-loading').style.display = 'none';
 
   var html = '';
@@ -1084,7 +1103,7 @@ function renderMemberRow(m) {
   var isMe = m.user_id === _user.id;
   var name = m.profiles ? m.profiles.name : 'Unknown';
   var isLeader = _membership && _membership.role === 'leader';
-  return '<div class="member-row" onclick="showMemberDetail(\'' + esc(name) + '\', \'' + m.user_id + '\', \'' + m.role + '\')">' +
+  return '<div class="member-row" onclick="showMemberDetail(\'' + m.user_id + '\')">' +
     avatarHtml(name, m.profiles ? m.profiles.avatar_url : null, isMe ? 'background:var(--gold);color:var(--navy);' : '') +
     '<div class="member-info">' +
     '<div class="member-name">' + esc(name) + (isMe ? ' <span style="color:var(--muted);font-weight:400;">(you)</span>' : '') + '</div>' +
@@ -1418,6 +1437,9 @@ async function uploadAvatar(input) {
 
 async function openProfile() {
   document.getElementById('profile-name').value = _profile ? _profile.name : '';
+  var bioVal = _profile ? (_profile.bio || '') : '';
+  document.getElementById('profile-bio').value = bioVal;
+  document.getElementById('profile-bio-count').textContent = bioVal.length + ' / 120';
   document.getElementById('profile-phone').textContent = _user && _user.phone ? _user.phone : '—';
   document.getElementById('create-group-form').style.display = 'none';
   document.getElementById('new-group-name').value = '';
@@ -1451,9 +1473,11 @@ async function saveProfile() {
   var errEl = document.getElementById('profile-error');
   errEl.style.display = 'none';
   if (!name) { showErr(errEl, 'Please enter a name.'); return; }
-  var { error } = await _sb.from('profiles').update({ name }).eq('id', _user.id);
+  var bio = document.getElementById('profile-bio').value.trim().slice(0, 120);
+  var { error } = await _sb.from('profiles').update({ name: name, bio: bio }).eq('id', _user.id);
   if (error) { showErr(errEl, error.message); return; }
   _profile.name = name;
+  _profile.bio = bio;
   showScreen('screen-main');
 }
 
@@ -1528,7 +1552,12 @@ async function signOut() {
   showScreen('screen-phone');
 }
 
-async function showMemberDetail(name, userId, role) {
+async function showMemberDetail(userId) {
+  var member = _membersMap[userId] || {};
+  var name = member.name || 'Unknown';
+  var phone = member.phone || '';
+  var bio = member.bio || '';
+  var role = member.role || 'member';
   document.getElementById('member-detail-name').textContent = name;
   var isLeader = _membership && _membership.role === 'leader';
   var isMe = userId === _user.id;
@@ -1540,7 +1569,14 @@ async function showMemberDetail(name, userId, role) {
     .eq('user_id', userId)
     .eq('is_answered', false);
 
-  var html = '<div class="section-label">Active Requests</div>';
+  var html = '';
+  if (!isMe && (bio || phone)) {
+    html += '<div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">';
+    if (bio) html += '<p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:12px;">' + esc(bio) + '</p>';
+    if (phone) html += '<button onclick="textMember(\'' + phone + '\')" style="background:var(--navy);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;">💬 Text ' + esc(name.split(' ')[0]) + '</button>';
+    html += '</div>';
+  }
+  html += '<div class="section-label">Active Requests</div>';
   if (!requests || requests.length === 0) {
     html += '<div class="empty-state" style="padding:24px 0;"><p>No active requests.</p></div>';
   } else {
