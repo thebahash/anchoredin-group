@@ -1138,6 +1138,7 @@ function renderRequestCard(r, isOwner) {
       ? '<button class="btn btn-pray btn-sm btn-prayed" disabled>🙏 Amen' + (amenCount > 1 ? ' ' + amenCount : '') + '</button>'
       : '<button class="btn btn-pray btn-sm" onclick="amenRequest(\'' + r.id + '\', this)">🙏 Amen' + (amenCount > 0 ? ' ' + amenCount : '') + '</button>') +
     '<button class="btn btn-word btn-sm" onclick="prayTheWord(_reqCache[\'' + r.id + '\'])">Pray the Word</button>' +
+    '<button class="btn btn-outline btn-sm speak-btn" onclick="speakRequest(\'' + r.id + '\', this)" title="Listen">🔊</button>' +
     '</div>' +
     '</div>' +
     (isOwner ? '<div class="btn-row">' +
@@ -1307,6 +1308,23 @@ async function confirmAnswered(skipTestimony) {
   });
 
   switchTab('answered');
+}
+
+function speakRequest(requestId, btn) {
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    document.querySelectorAll('.speak-btn').forEach(function(b) { b.textContent = '🔊'; });
+    return;
+  }
+  var r = _reqCache[requestId];
+  if (!r) return;
+  var name = (r.anonymous ? 'Anonymous' : (r.profiles ? r.profiles.name : 'Someone'));
+  var text = name + ' requests prayer: ' + r.body;
+  var utterance = new SpeechSynthesisUtterance(text);
+  utterance.onend = function() { btn.textContent = '🔊'; };
+  utterance.onerror = function() { btn.textContent = '🔊'; };
+  btn.textContent = '⏹';
+  window.speechSynthesis.speak(utterance);
 }
 
 async function amenRequest(requestId, btn) {
