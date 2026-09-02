@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
 import { getAuthUserId } from './_auth.js';
 
 function randomCode(len) {
@@ -13,44 +12,56 @@ function randomCode(len) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const userId = await getAuthUserId(req);
+  var userId = await getAuthUserId(req);
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-  const { name } = req.body;
+  var { name } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'Group name is required' });
 
-  const sb = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY
-  );
+  var sbUrl = process.env.SUPABASE_URL;
+  var sbKey = process.env.SUPABASE_SERVICE_KEY;
+  var headers = {
+    'apikey': sbKey,
+    'Authorization': 'Bearer ' + sbKey,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
 
   // Generate a unique invite code
   var invite_code = randomCode(6);
-  var attempts = 0;
-  while (attempts < 5) {
-    var { data: existing } = await sb.from('groups').select('id').eq('invite_code', invite_code).single();
-    if (!existing) break;
+  for (var attempt = 0; attempt < 5; attempt++) {
+    var checkRes = await fetch(
+      sbUrl + '/rest/v1/groups?invite_code=eq.' + invite_code + '&select=id&limit=1',
+      { headers: headers }
+    );
+    var existing = await checkRes.json().catch(function() { return []; });
+    if (!existing || existing.length === 0) break;
     invite_code = randomCode(6);
-    attempts++;
   }
 
   // Create the group
-  var { data: group, error: groupErr } = await sb
-    .from('groups')
-    .insert({ name: name.trim(), invite_code, created_by: userId })
-    .select()
-    .single();
-
-  if (groupErr) return res.status(500).json({ error: groupErr.message });
+  var groupRes = await fetch(sbUrl + '/rest/v1/groups', {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify({ name: name.trim(), invite_code: invite_code, created_by: userId })
+  });
+  var groupData = await groupRes.json().catch(function() { return {}; });
+  if (!groupRes.ok) {
+    return res.status(500).json({ error: (groupData && groupData.message) || 'Failed to create group' });
+  }
+  var group = Array.isArray(groupData) ? groupData[0] : groupData;
 
   // Add creator as leader
-  var { data: membership, error: memErr } = await sb
-    .from('members')
-    .insert({ group_id: group.id, user_id: userId, role: 'leader' })
-    .select()
-    .single();
+  var memRes = await fetch(sbUrl + '/rest/v1/members', {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify({ group_id: group.id, user_id: userId, role: 'leader' })
+  });
+  var memData = await memRes.json().catch(function() { return {}; });
+  if (!memRes.ok) {
+    return res.status(500).json({ error: (memData && memData.message) || 'Failed to add membership' });
+  }
+  var membership = Array.isArray(memData) ? memData[0] : memData;
 
-  if (memErr) return res.status(500).json({ error: memErr.message });
-
-  return res.json({ group, membership });
+  return res.json({ group: group, membership: membership });
 }
