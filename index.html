@@ -907,6 +907,49 @@ var _feedPage = 0;
 var _feedPageSize = 20;
 var _feedHasMore = false;
 
+function getWeekStart(dateStr) {
+  var d = new Date(dateStr);
+  var day = d.getDay(); // 0=Sun
+  var diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
+  var monday = new Date(d.setDate(diff));
+  monday.setHours(0, 0, 0, 0);
+  return monday.getTime();
+}
+
+function weekLabel(ts) {
+  var now = new Date();
+  var thisWeekStart = getWeekStart(now.toISOString());
+  var lastWeekStart = thisWeekStart - 7 * 86400000;
+  if (ts >= thisWeekStart) return 'This week';
+  if (ts >= lastWeekStart) return 'Last week';
+  var d = new Date(ts);
+  return 'Week of ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function renderFeedWithWeeks(requests, append) {
+  var groups = [];
+  var keyOrder = [];
+  var keyMap = {};
+  requests.forEach(function(r) {
+    var wk = getWeekStart(r.created_at);
+    if (!keyMap[wk]) { keyMap[wk] = []; keyOrder.push(wk); }
+    keyMap[wk].push(r);
+  });
+  var html = '';
+  keyOrder.forEach(function(wk, i) {
+    var label = weekLabel(wk);
+    var isFirst = !append && i === 0;
+    html += '<details' + (isFirst ? ' open' : '') + ' style="margin:0;">' +
+      '<summary style="list-style:none;cursor:pointer;padding:14px 16px 6px;display:flex;align-items:center;gap:8px;">' +
+      '<span style="flex:1;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;">' + label + '</span>' +
+      '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><path d="M2 4l4 4 4-4"/></svg>' +
+      '</summary>' +
+      keyMap[wk].map(function(r) { return renderRequestCard(r, r.user_id === _user.id); }).join('') +
+      '</details>';
+  });
+  return html;
+}
+
 async function loadFeed(append) {
   if (!append) _feedPage = 0;
   document.getElementById('feed-loading').style.display = append ? 'none' : 'block';
@@ -935,7 +978,7 @@ async function loadFeed(append) {
   _feedHasMore = requests.length === _feedPageSize;
   enrichUpdatesWithHearts(requests);
   requests.forEach(function(r) { _reqCache[r.id] = r; });
-  var html = requests.map(function(r) { return renderRequestCard(r, r.user_id === _user.id); }).join('');
+  var html = renderFeedWithWeeks(requests, append);
   if (append) {
     document.getElementById('feed-list').insertAdjacentHTML('beforeend', html);
   } else {
