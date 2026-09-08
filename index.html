@@ -1832,7 +1832,7 @@ function inviteMember() {
   var link = 'https://group.anchoredin.app/?join=' + _group.invite_code;
   var msg = 'Join ' + _group.name + ' on Anchored In — tap to join: ' + link;
   if (navigator.share) {
-    navigator.share({ title: 'Join ' + _group.name, url: link, text: msg }).catch(function() {});
+    navigator.share({ title: 'Join ' + _group.name, text: msg }).catch(function() {});
   } else {
     navigator.clipboard && navigator.clipboard.writeText(link).then(function() { alert('Link copied!'); });
   }
@@ -1842,7 +1842,7 @@ function shareApp() {
   var url = 'https://group.anchoredin.app';
   var msg = 'Pray for each other with Anchored In Group — share requests, see who’s covering you, and pray the Word together.';
   if (navigator.share) {
-    navigator.share({ title: 'Anchored In Group', url: url, text: msg }).catch(function() {});
+    navigator.share({ title: 'Anchored In Group', text: msg + ' ' + url }).catch(function() {});
   } else {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url).then(function() {
