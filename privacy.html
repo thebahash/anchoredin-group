@@ -3,57 +3,101 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Privacy Policy — Anchored In Group</title>
+  <title>Privacy — Anchored In Group</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f4ef; color: #2c2c2c; }
-    header { background: #1a2a4a; padding: 20px 24px; display: flex; align-items: center; gap: 12px; }
-    header a { color: rgba(255,255,255,0.6); font-size: 14px; text-decoration: none; }
-    header span { color: rgba(255,255,255,0.3); }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #1a2a4a;
+      --navy-2: #243560;
+      --gold: #c9a84c;
+      --text: #1a2a4a;
+      --muted: #5a6a8a;
+      --border: #dde3ef;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+
+    header { background: var(--navy); padding: 18px 24px; display: flex; align-items: center; gap: 12px; }
+    header a { color: rgba(255,255,255,0.55); font-size: 14px; text-decoration: none; }
+    header a:hover { color: rgba(255,255,255,0.85); }
+    header span { color: rgba(255,255,255,0.25); }
     header h1 { color: #fff; font-size: 16px; font-weight: 600; }
-    .content { max-width: 640px; margin: 0 auto; padding: 32px 24px 64px; }
-    h2 { font-size: 22px; font-weight: 800; color: #1a2a4a; margin-bottom: 4px; }
-    .updated { font-size: 13px; color: #777; margin-bottom: 32px; }
-    h3 { font-size: 16px; font-weight: 700; color: #1a2a4a; margin: 28px 0 8px; }
-    p { font-size: 15px; line-height: 1.7; color: #444; margin-bottom: 12px; }
-    a { color: #c9a84c; }
+
+    .content { max-width: 600px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    .label { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+    h2 { font-size: 26px; font-weight: 800; color: var(--navy); margin-bottom: 6px; line-height: 1.2; }
+    .updated { font-size: 12px; color: var(--muted); margin-bottom: 28px; }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin: 24px 0; }
+    .card p { margin: 0; font-size: 14px; line-height: 1.7; color: var(--muted); }
+
+    h3 { font-size: 15px; font-weight: 700; color: var(--navy); margin: 28px 0 8px; }
+    p { font-size: 15px; line-height: 1.75; color: var(--muted); margin-bottom: 12px; }
+    a { color: var(--gold); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    strong { color: var(--text); }
+
+    footer { text-align: center; padding: 24px 24px 40px; border-top: 1px solid var(--border); margin-top: 20px; }
+    footer p { font-size: 12px; color: var(--muted); }
+    footer a { color: var(--muted); font-size: 12px; }
   </style>
 </head>
 <body>
+
   <header>
     <a href="/">← Back</a>
     <span>|</span>
-    <h1>Privacy Policy</h1>
+    <h1>Anchored In Group</h1>
   </header>
-  <div class="content">
-    <h2>Privacy Policy</h2>
-    <div class="updated">Last updated: August 2026</div>
 
-    <p>Anchored In Group ("we," "our," or "us") is a prayer request app for Bible study and small groups. We take your privacy seriously. This policy explains what information we collect, how we use it, and how we protect it.</p>
+  <div class="content">
+
+    <p class="label">Privacy</p>
+    <h2>What we collect — and what we don't.</h2>
+    <p class="updated">Last updated September 2026</p>
+
+    <div class="card">
+      <p>Anchored In Group stores only what's needed to run a shared prayer space. We don't sell your data, use it for advertising, or share it with anyone outside the services listed below.</p>
+    </div>
 
     <h3>What we collect</h3>
-    <p><strong>Phone number.</strong> We collect your phone number to verify your identity via a one-time SMS code. We do not share your phone number with other users unless you choose to make it visible (e.g., for direct texting features).</p>
-    <p><strong>Name.</strong> We collect the name you provide during signup to display within your group.</p>
-    <p><strong>Prayer requests and updates.</strong> Any prayer requests, updates, or messages you post are stored and visible to members of your group only.</p>
+    <p><strong>Phone number.</strong> Collected to verify your identity via a one-time SMS code. Not shown to other group members unless you tap "Text" on someone's profile — that opens your own Messages app and is between you and them.</p>
+    <p><strong>Name and bio.</strong> The name and optional bio you set in your profile are visible to members of your group.</p>
+    <p><strong>Prayer requests and updates.</strong> Requests, updates, and replies you post are stored and visible only to members of your group. Members in other groups cannot see your content.</p>
+    <p><strong>Push notification subscription.</strong> If you enable notifications, your browser's push subscription endpoint is stored so we can deliver notifications. It is not shared or used for anything else.</p>
 
     <h3>How we use it</h3>
-    <p>We use your information solely to operate the app — to verify your identity, display your name to your group members, and store your prayer requests. We do not sell your data, use it for advertising, or share it with third parties except as described below.</p>
+    <p>Your information is used solely to operate the app — to verify your identity, display your name and requests to group members, and send you notifications when something happens in your group. Nothing more.</p>
 
     <h3>Third-party services</h3>
-    <p><strong>Supabase</strong> — our database and authentication provider. Your data is stored securely on Supabase infrastructure.</p>
-    <p><strong>Twilio</strong> — used to send your one-time SMS verification code. Twilio receives your phone number for this purpose only.</p>
+    <p><strong>Supabase</strong> — database, authentication, and row-level security. Your data is stored on Supabase infrastructure and is protected by row-level security policies that prevent cross-group access.</p>
+    <p><strong>Twilio</strong> — sends your one-time SMS verification code. Twilio receives your phone number for this purpose only.</p>
+    <p><strong>Anthropic</strong> — the "Pray the Word" feature sends your prayer request text to Anthropic's Claude API to generate relevant scripture and a prayer. This text is not stored by Anchored In after the response is returned. See <a href="https://www.anthropic.com/privacy" target="_blank">anthropic.com/privacy</a> for Anthropic's practices.</p>
 
     <h3>Data visibility</h3>
-    <p>Your prayer requests and updates are visible only to members of your group. Members in other groups cannot see your content. We use row-level security to enforce this at the database level.</p>
+    <p>Your requests, updates, and profile are visible only to members of your group. Row-level security is enforced at the database level — not just in the app.</p>
 
     <h3>Data retention</h3>
-    <p>Your data is retained as long as you are a member of a group. You may contact us to request deletion of your account and associated data at any time.</p>
+    <p>Your data is retained as long as you are a member of a group. To request deletion of your account and all associated data, email us at <a href="mailto:hello@anchoredin.app">hello@anchoredin.app</a> and we will handle it promptly.</p>
 
     <h3>Children</h3>
-    <p>Anchored In Group is not intended for use by children under 13. We do not knowingly collect information from children under 13.</p>
+    <p>Anchored In Group is not intended for children under 13. We do not knowingly collect information from children under 13.</p>
+
+    <h3>Changes to this policy</h3>
+    <p>If this policy changes, the updated version will be posted here with a new date.</p>
 
     <h3>Contact</h3>
-    <p>Questions or requests? Email us at <a href="mailto:hello@anchoredin.app">hello@anchoredin.app</a>.</p>
+    <p>Questions? Email <a href="mailto:hello@anchoredin.app">hello@anchoredin.app</a>.</p>
+
   </div>
+
+  <footer>
+    <p><a href="/">← Back to Anchored In Group</a> &nbsp;&middot;&nbsp; <a href="https://anchoredin.app/privacy">Main app privacy</a></p>
+  </footer>
+
 </body>
 </html>
