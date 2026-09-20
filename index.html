@@ -365,6 +365,27 @@
   </div>
 </div>
 
+<!-- Install prompt modal -->
+<div id="install-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;align-items:flex-end;justify-content:center;padding:0;">
+  <div style="background:#fff;border-radius:20px 20px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;">
+    <div style="text-align:center;font-size:38px;margin-bottom:10px;">📲</div>
+    <h2 style="text-align:center;font-size:20px;font-weight:800;color:var(--navy);margin-bottom:8px;">Add to your home screen</h2>
+    <p style="text-align:center;font-size:14px;color:var(--muted);line-height:1.5;margin-bottom:20px;">Get the full app experience — open it like any other app, straight from your home screen.</p>
+
+    <!-- iOS instructions -->
+    <div id="install-ios" style="display:none;background:#f5f7fb;border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:14px;color:var(--navy);line-height:1.8;">
+      <div>1. Tap the <strong>Share</strong> button <span style="font-size:16px;">⎙</span> at the bottom of Safari</div>
+      <div>2. Scroll down and tap <strong>"Add to Home Screen"</strong></div>
+      <div>3. Tap <strong>Add</strong> in the top right</div>
+    </div>
+
+    <!-- Android button -->
+    <button id="install-android-btn" style="display:none;width:100%;background:var(--navy);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px;" onclick="triggerAndroidInstall()">Add to Home Screen</button>
+
+    <button onclick="dismissInstallModal()" style="width:100%;background:none;border:1.5px solid var(--border);border-radius:12px;padding:12px;font-size:14px;color:var(--muted);cursor:pointer;">Maybe later</button>
+  </div>
+</div>
+
 <!-- Answered celebration modal -->
 <div id="answered-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;align-items:center;justify-content:center;padding:24px;">
   <div style="background:#fff;border-radius:20px;padding:28px 24px;width:100%;max-width:380px;">
@@ -789,6 +810,43 @@ async function createGroup() {
   }
 }
 
+// ── INSTALL PROMPT ──
+var _installPromptEvent = null;
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  _installPromptEvent = e;
+});
+
+function maybeShowInstallPrompt() {
+  // Don't show if already installed or already dismissed
+  if (window.matchMedia('(display-mode: standalone)').matches) return;
+  if (navigator.standalone) return;
+  if (localStorage.getItem('install_dismissed')) return;
+
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  var isAndroid = !!_installPromptEvent;
+
+  if (!isIOS && !isAndroid) return;
+
+  var modal = document.getElementById('install-modal');
+  modal.style.display = 'flex';
+  if (isIOS) document.getElementById('install-ios').style.display = 'block';
+  if (isAndroid) document.getElementById('install-android-btn').style.display = 'block';
+}
+
+function dismissInstallModal() {
+  document.getElementById('install-modal').style.display = 'none';
+  localStorage.setItem('install_dismissed', '1');
+}
+
+async function triggerAndroidInstall() {
+  if (!_installPromptEvent) return;
+  _installPromptEvent.prompt();
+  var result = await _installPromptEvent.userChoice;
+  _installPromptEvent = null;
+  dismissInstallModal();
+}
+
 // ── ENTER APP ──
 function enterApp() {
   document.getElementById('group-name-label').textContent = _group.name;
@@ -799,6 +857,8 @@ function enterApp() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function() {});
   showScreen('screen-main');
   switchTab('requests');
+  // Show install prompt after a short delay so the app feels settled first
+  setTimeout(maybeShowInstallPrompt, 2000);
 }
 
 // ── PUSH NOTIFICATIONS ──
