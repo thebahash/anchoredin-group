@@ -112,7 +112,8 @@ async function notifyGroupOfNewMember(sbUrl, sbKey, groupId, newUserId) {
       if (sub) {
         notifications.push(webpush.sendNotification(sub, pushPayload).catch(function() {}));
       }
-      if (profile.phone && twilioSid) {
+      // SMS — fallback only if no push subscription
+      if (profile.phone && twilioSid && !sub) {
         var formData = new URLSearchParams();
         formData.append('To', profile.phone);
         formData.append('From', twilioFrom);
