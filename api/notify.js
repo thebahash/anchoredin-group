@@ -77,8 +77,7 @@ export default async function handler(req, res) {
           );
         }
 
-        // SMS — fallback only if no push subscription
-        if (profile.phone && twilioSid && !sub) {
+        if (profile.phone && twilioSid) {
           const formData = new URLSearchParams();
           formData.append('To', profile.phone);
           formData.append('From', twilioFrom);
