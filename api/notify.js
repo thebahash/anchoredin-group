@@ -1,4 +1,5 @@
 import webpush from 'web-push';
+import { notifyMember, twilioConfig } from './_notify.js';
 import { getAuthUserId } from './_auth.js';
 
 export default async function handler(req, res) {
@@ -47,53 +48,25 @@ export default async function handler(req, res) {
     });
     const smsBody = requesterName + ' posted a prayer request: "' + preview + '" — pray with them at group.anchoredin.app';
 
-    const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-    const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-    const twilioFrom = process.env.TWILIO_PHONE_NUMBER;
-    const credentials = Buffer.from(twilioSid + ':' + twilioToken).toString('base64');
+    const twilio = twilioConfig();
 
-    // Send all notifications in parallel
+    // Push first; SMS only if the member has no push or the push fails
     const tasks = (members || [])
-      .filter(function(m) { return m.user_id !== userId; })
-      .flatMap(function(m) {
-        const profile = m.profiles;
-        if (!profile) return [];
-        const notifications = [];
-
-        // Push notification
-        const sub = subsByUser[m.user_id];
-        if (sub) {
-          notifications.push(
-            webpush.sendNotification(sub, pushPayload).catch(async function(err) {
-              if (err.statusCode === 410 || err.statusCode === 404) {
-                // Expired subscription — clean it up
-                await fetch(
-                  sbUrl + '/rest/v1/push_subscriptions?user_id=eq.' + m.user_id + '&group_id=eq.' + groupId,
-                  { method: 'DELETE', headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey } }
-                ).catch(function() {});
-              }
-              return { method: 'push', status: 'failed' };
-            }).then(function() { return { method: 'push', status: 'sent' }; })
-          );
-        }
-
-        if (profile.phone && twilioSid) {
-          const formData = new URLSearchParams();
-          formData.append('To', profile.phone);
-          formData.append('From', twilioFrom);
-          formData.append('Body', smsBody);
-          notifications.push(
-            fetch('https://api.twilio.com/2010-04-01/Accounts/' + twilioSid + '/Messages.json', {
-              method: 'POST',
-              headers: { 'Authorization': 'Basic ' + credentials, 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: formData.toString()
-            }).then(function(r) { return r.json(); })
-              .then(function(d) { return { method: 'sms', sid: d.sid, status: d.status }; })
-              .catch(function(e) { return { method: 'sms', status: 'failed', error: e.message }; })
-          );
-        }
-
-        return notifications;
+      .filter(function(m) { return m.user_id !== userId && m.profiles; })
+      .map(function(m) {
+        return notifyMember({
+          sub: subsByUser[m.user_id],
+          phone: m.profiles.phone,
+          pushPayload: pushPayload,
+          smsBody: smsBody,
+          twilio: twilio,
+          onExpired: function() {
+            return fetch(
+              sbUrl + '/rest/v1/push_subscriptions?user_id=eq.' + m.user_id + '&group_id=eq.' + groupId,
+              { method: 'DELETE', headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey } }
+            );
+          }
+        });
       });
 
     const results = await Promise.all(tasks);

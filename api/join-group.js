@@ -1,4 +1,5 @@
 import webpush from 'web-push';
+import { notifyMember, twilioConfig } from './_notify.js';
 import { getAuthUserId } from './_auth.js';
 
 export default async function handler(req, res) {
@@ -102,30 +103,23 @@ async function notifyGroupOfNewMember(sbUrl, sbKey, groupId, newUserId) {
   var subsByUser = {};
   (subs || []).forEach(function(s) { subsByUser[s.user_id] = s.subscription; });
 
+  // Push first; SMS only if the member has no push or the push fails
   var tasks = (members || [])
-    .filter(function(m) { return m.user_id !== newUserId; })
-    .flatMap(function(m) {
-      var profile = m.profiles;
-      if (!profile) return [];
-      var notifications = [];
-      var sub = subsByUser[m.user_id];
-      if (sub) {
-        notifications.push(webpush.sendNotification(sub, pushPayload).catch(function() {}));
-      }
-      if (profile.phone && twilioSid) {
-        var formData = new URLSearchParams();
-        formData.append('To', profile.phone);
-        formData.append('From', twilioFrom);
-        formData.append('Body', smsBody);
-        notifications.push(
-          fetch('https://api.twilio.com/2010-04-01/Accounts/' + twilioSid + '/Messages.json', {
-            method: 'POST',
-            headers: { 'Authorization': 'Basic ' + credentials, 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: formData.toString()
-          }).catch(function() {})
-        );
-      }
-      return notifications;
+    .filter(function(m) { return m.user_id !== newUserId && m.profiles; })
+    .map(function(m) {
+      return notifyMember({
+        sub: subsByUser[m.user_id],
+        phone: m.profiles.phone,
+        pushPayload: pushPayload,
+        smsBody: smsBody,
+        twilio: twilioConfig(),
+        onExpired: function() {
+          return fetch(
+            sbUrl + '/rest/v1/push_subscriptions?user_id=eq.' + m.user_id + '&group_id=eq.' + groupId,
+            { method: 'DELETE', headers: serviceHeaders }
+          );
+        }
+      });
     });
 
   await Promise.all(tasks);
