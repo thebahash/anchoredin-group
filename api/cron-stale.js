@@ -1,14 +1,13 @@
 import webpush from 'web-push';
+import { isCronRequest } from './_cron.js';
 
 // Cron: called daily (e.g. via Vercel Cron or external scheduler)
-// Finds requests older than 21 days with no update and nudges the requester.
+// Finds requests that just turned 21 days old with no update and nudges the requester once.
 export default async function handler(req, res) {
   // Allow GET (cron pings) or POST
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end();
 
-  // Simple shared secret to prevent unauthenticated calls
-  const secret = req.headers['x-cron-secret'] || req.query.secret;
-  if (secret !== process.env.CRON_SECRET) return res.status(401).json({ error: 'Unauthorized' });
+  if (!isCronRequest(req)) return res.status(401).json({ error: 'Unauthorized' });
 
   const sbUrl = process.env.SUPABASE_URL;
   const sbKey = process.env.SUPABASE_SERVICE_KEY;
@@ -20,11 +19,14 @@ export default async function handler(req, res) {
   );
 
   try {
-    // Find requests older than 21 days, not answered, with no updates
-    const cutoff = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString();
+    // Find requests that turned 21 days old in the last day, not answered, with no updates.
+    // This runs daily, so each request gets one nudge instead of one every day.
+    const day = 24 * 60 * 60 * 1000;
+    const cutoff = new Date(Date.now() - 21 * day).toISOString();
+    const windowStart = new Date(Date.now() - 22 * day).toISOString();
 
     const reqRes = await fetch(
-      sbUrl + '/rest/v1/requests?is_answered=eq.false&created_at=lt.' + cutoff +
+      sbUrl + '/rest/v1/requests?is_answered=eq.false&created_at=lt.' + cutoff + '&created_at=gte.' + windowStart +
       '&select=id,body,user_id,group_id,profiles(name),request_updates(id)',
       { headers: { 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey } }
     );

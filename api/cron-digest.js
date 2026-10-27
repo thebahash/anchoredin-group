@@ -1,12 +1,12 @@
 import webpush from 'web-push';
+import { isCronRequest } from './_cron.js';
 
 // Cron: called Sunday mornings (e.g. 8am via Vercel Cron or external scheduler)
 // Sends each group a weekly digest push notification summarizing activity.
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end();
 
-  const secret = req.headers['x-cron-secret'] || req.query.secret;
-  if (secret !== process.env.CRON_SECRET) return res.status(401).json({ error: 'Unauthorized' });
+  if (!isCronRequest(req)) return res.status(401).json({ error: 'Unauthorized' });
 
   const sbUrl = process.env.SUPABASE_URL;
   const sbKey = process.env.SUPABASE_SERVICE_KEY;
