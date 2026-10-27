@@ -1,7 +1,13 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "crons": [
     {
@@ -12,5 +18,10 @@
       "path": "/api/cron-digest",
       "schedule": "0 8 * * 0"
     }
-  ]
+  ],
+  "functions": {
+    "api/study-import.js": {
+      "maxDuration": 60
+    }
+  }
 }
