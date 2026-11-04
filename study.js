@@ -2,7 +2,7 @@
 // One week at a time: Read, Background, Word study, Discuss, This week.
 // Uses globals from index.html: _sb, _user, _group, _membership, esc, avatarHtml, apiHeaders, showErr, showScreen, switchTab.
 
-var _study = { groupId: null, sessions: [], currentId: null, data: null, passages: {}, editing: null };
+var _study = { groupId: null, sessions: [], currentId: null, data: null, passages: {} };
 
 function stIsLeader() { return !!(_membership && _membership.role === 'leader'); }
 function stPad(n) { return (n < 10 ? '0' : '') + n; }
@@ -28,7 +28,7 @@ function stSetupMissing(err) {
 async function loadStudy() {
   var body = document.getElementById('study-body');
   if (_study.groupId !== _group.id) {
-    _study = { groupId: _group.id, sessions: [], currentId: null, data: null, passages: _study.passages || {}, editing: null };
+    _study = { groupId: _group.id, sessions: [], currentId: null, data: null, passages: _study.passages || {} };
   }
   body.innerHTML = '<div class="loading">Loading study...</div>';
 
@@ -88,7 +88,6 @@ function renderStudyChips() {
 
 async function openStudySession(id) {
   _study.currentId = id;
-  _study.editing = null;
   var s = stSession();
   var body = document.getElementById('study-body');
   if (!s) return;
@@ -102,29 +101,19 @@ async function openStudySession(id) {
   var none = Promise.resolve({ data: [] });
 
   var results = await Promise.all([
-    ids.length ? _sb.from('study_answers').select('*, profiles(name, avatar_url), study_answer_hearts(user_id)').in('question_id', ids).order('created_at') : none,
-    _sb.rpc('study_answer_counts', { sid: s.id }),
     _sb.from('study_checkins').select('user_id').eq('session_id', s.id),
-    (leader && ids.length) ? _sb.from('study_question_notes').select('*').in('question_id', ids) : none,
-    leader ? _sb.rpc('study_session_stats', { sid: s.id }) : none
+    (leader && ids.length) ? _sb.from('study_question_notes').select('*').in('question_id', ids) : none
   ]);
   if (_study.currentId !== id) return; // switched weeks while loading
 
-  var answersByQ = {};
-  (results[0].data || []).forEach(function(a) { (answersByQ[a.question_id] = answersByQ[a.question_id] || []).push(a); });
-  var counts = {};
-  (results[1].data || []).forEach(function(c) { counts[c.question_id] = Number(c.answers) || 0; });
   var notes = {};
-  (results[3].data || []).forEach(function(n) { notes[n.question_id] = n.note; });
+  (results[1].data || []).forEach(function(n) { notes[n.question_id] = n.note; });
 
   _study.data = {
     sessionId: s.id,
     questions: questions,
-    answersByQ: answersByQ,
-    counts: counts,
-    checkins: (results[2].data || []).map(function(c) { return c.user_id; }),
-    notes: notes,
-    stats: (results[4].data || [])[0] || null
+    checkins: (results[0].data || []).map(function(c) { return c.user_id; }),
+    notes: notes
   };
   renderStudySession();
   loadStudyPassage(s);
@@ -148,7 +137,7 @@ function renderStudySession() {
       '<button class="st-expand" id="st-expand" onclick="toggleStudyScripture()">Show full chapter</button>' +
       '<div class="st-copyright" id="st-copyright"></div>';
   } else {
-    html += '<p class="st-muted">Read ' + esc(s.passage_ref || s.title) + ' in your Bible before you answer.</p>';
+    html += '<p class="st-muted">Read ' + esc(s.passage_ref || s.title) + ' in your Bible before group.</p>';
   }
   html += '</div></details>';
 
@@ -181,10 +170,7 @@ function renderStudySession() {
   if (d.questions.length) {
     html += '<details class="card st-sec" open><summary><span class="st-sec-label">Discuss</span><span class="st-sec-count">' + d.questions.length +
       (d.questions.length === 1 ? ' question' : ' questions') + '</span><span class="st-chev"></span></summary><div class="st-sec-body">';
-    if (stIsLeader() && d.stats) {
-      html += '<div class="st-summary"><b style="color:var(--navy);">Before group:</b> ' + Number(d.stats.answered_members) + ' of ' +
-        Number(d.stats.members) + ' members have answered at least one question.</div>';
-    }
+    html += '<p class="st-muted" style="margin-bottom:14px;">For open discussion when we meet. Think them over before group.</p>';
     html += d.questions.map(function(q, i) { return renderStudyQuestion(q, i); }).join('') + '</div></details>';
   }
 
@@ -210,8 +196,7 @@ function renderStudyHead(s) {
     '<h2 class="st-title">' + esc(s.title) + '</h2>' +
     (s.subtitle ? '<div class="st-sub">' + esc(s.subtitle) + '</div>' : '') + '</div>' +
     '<div class="st-meta"><span>' + (unlocked ? 'Opened ' : 'Opens ') + esc(stFmt(s.unlock_at)) + '</span>' +
-    (s.meets_at ? '<span>Group meets ' + esc(stFmt(s.meets_at)) + '</span>' : '') + '</div>' +
-    '<div class="st-progress" id="st-progress">' + renderStudyProgress() + '</div>';
+    (s.meets_at ? '<span>Group meets ' + esc(stFmt(s.meets_at)) + '</span>' : '') + '</div>';
   if (leader) {
     html += '<div class="st-leader-bar"><button class="btn btn-outline btn-sm" onclick="openStudyEditor(\'' + s.id + '\')">Edit week</button>';
     if (!unlocked) html += '<span>Opens ' + esc(stFmt(s.unlock_at)) + '. Notify the group that day.</span>';
@@ -222,17 +207,6 @@ function renderStudyHead(s) {
   return html + '</section>';
 }
 
-function renderStudyProgress() {
-  var d = _study.data;
-  if (!d || !d.questions.length) return '';
-  var answered = d.questions.filter(function(q) { return stMyAnswer(q.id); }).length;
-  var pips = d.questions.map(function(q) { return '<span class="st-pip' + (stMyAnswer(q.id) ? ' on' : '') + '"></span>'; }).join('');
-  var s = stSession();
-  if (s && s.content && s.content.challenge && s.content.challenge.text) {
-    pips += '<span class="st-pip' + (d.checkins.indexOf(_user.id) !== -1 ? ' on' : '') + '"></span>';
-  }
-  return '<div class="st-pips">' + pips + '</div><span>' + answered + ' of ' + d.questions.length + ' answered</span>';
-}
 
 function renderStudyRefChips(refs) {
   refs = (refs || []).map(Number).filter(function(n) { return Number.isFinite(n) && n > 0; });
@@ -242,64 +216,14 @@ function renderStudyRefChips(refs) {
   }).join('') + '</div>';
 }
 
-function stMyAnswer(qid) {
-  var list = (_study.data && _study.data.answersByQ[qid]) || [];
-  return list.find(function(a) { return a.user_id === _user.id; }) || null;
-}
 
-function renderStudyAnswer(a, qid) {
-  var mine = a.user_id === _user.id;
-  var hearts = a.study_answer_hearts || [];
-  var hearted = hearts.some(function(h) { return h.user_id === _user.id; });
-  var name = mine ? 'You' : ((a.profiles && a.profiles.name) || 'Member');
-  var foot = '<div class="st-ans-foot">';
-  if (mine) {
-    foot += (hearts.length ? '<span class="st-link">♥ ' + hearts.length + '</span>' : '') +
-      '<button class="st-link" onclick="editStudyAnswer(\'' + qid + '\')">Edit</button>';
-  } else {
-    foot += '<button class="st-link' + (hearted ? ' on' : '') + '" onclick="toggleStudyHeart(\'' + a.id + '\',\'' + qid + '\')" aria-pressed="' + hearted + '">' +
-      (hearted ? '♥ ' : '♡ ') + hearts.length + '</button>';
-  }
-  foot += '</div>';
-  return '<div class="st-ans' + (mine ? ' mine' : '') + '">' +
-    avatarHtml(a.profiles && a.profiles.name, a.profiles && a.profiles.avatar_url) +
-    '<div class="st-ans-name">' + esc(name) + '</div><div class="st-ans-text">' + esc(a.body) + '</div>' + foot + '</div>';
-}
 
 function renderStudyQuestion(q, i) {
   var d = _study.data;
-  var leader = stIsLeader();
-  var answers = d.answersByQ[q.id] || [];
-  var mine = stMyAnswer(q.id);
-  var others = answers.filter(function(a) { return a.user_id !== _user.id; });
-  var count = Math.max(d.counts[q.id] || 0, answers.length);
-
   var html = '<div class="st-q' + (i === 0 ? ' first' : '') + '" id="sq-' + q.id + '">' +
     '<div class="st-q-title"><span class="st-q-num">' + (i + 1) + '</span><h4>' + esc(q.title) + '</h4></div>' +
     '<p class="st-q-prompt">' + esc(q.prompt) + '</p>' + renderStudyRefChips(q.refs);
-  if (leader && d.notes[q.id]) html += '<div class="st-lnote"><b>Leader note:</b> ' + esc(d.notes[q.id]) + '</div>';
-
-  if (mine && _study.editing !== q.id) {
-    html += '<div class="st-answers">' + renderStudyAnswer(mine, q.id) + others.map(function(a) { return renderStudyAnswer(a, q.id); }).join('') + '</div>';
-  } else {
-    var editing = !!(mine && _study.editing === q.id);
-    html += '<textarea id="sq-in-' + q.id + '" rows="3" placeholder="Write your answer..." aria-label="Your answer to question ' + (i + 1) + '">' +
-      (editing ? esc(mine.body) : '') + '</textarea><div class="st-q-actions">';
-    if (editing) {
-      html += '<button class="st-link" onclick="cancelStudyEdit()">Cancel</button>' +
-        '<button class="btn btn-pray btn-sm" onclick="saveStudyAnswer(\'' + q.id + '\')">Save</button>';
-    } else {
-      var lockText = count ? '🔒 ' + count + (count === 1 ? ' answer' : ' answers') + ' · post yours to see them' : 'Be the first to answer';
-      if (leader && count) lockText = count + (count === 1 ? ' answer' : ' answers') + ' so far';
-      html += '<span class="st-muted" style="font-size:12px;">' + lockText + '</span>' +
-        '<button class="btn btn-pray btn-sm" id="sq-post-' + q.id + '" onclick="postStudyAnswer(\'' + q.id + '\')">Post answer</button>';
-    }
-    html += '</div>';
-    if (!editing && leader && others.length) {
-      html += '<div class="st-answers-label">Leader view: answers so far</div><div class="st-answers">' +
-        others.map(function(a) { return renderStudyAnswer(a, q.id); }).join('') + '</div>';
-    }
-  }
+  if (stIsLeader() && d.notes[q.id]) html += '<div class="st-lnote"><b>Leader note:</b> ' + esc(d.notes[q.id]) + '</div>';
   return html + '</div>';
 }
 
@@ -312,15 +236,6 @@ function renderStudyCheckin() {
     (n ? n + (n === 1 ? ' person has' : ' people have') + ' done this' : 'Be the first') + '</span>';
 }
 
-function rerenderStudyQuestion(qid) {
-  var d = _study.data;
-  var i = d.questions.findIndex(function(q) { return q.id === qid; });
-  var el = document.getElementById('sq-' + qid);
-  if (i === -1 || !el) return;
-  el.outerHTML = renderStudyQuestion(d.questions[i], i);
-  var p = document.getElementById('st-progress');
-  if (p) p.innerHTML = renderStudyProgress();
-}
 
 // ── Passage ──
 async function loadStudyPassage(s) {
@@ -409,57 +324,10 @@ function studyCardGo(delta) {
 }
 
 // ── Actions ──
-async function refreshStudyAnswers(qid) {
-  var res = await _sb.from('study_answers').select('*, profiles(name, avatar_url), study_answer_hearts(user_id)').eq('question_id', qid).order('created_at');
-  if (!res.error) {
-    _study.data.answersByQ[qid] = res.data || [];
-    _study.data.counts[qid] = Math.max(_study.data.counts[qid] || 0, (res.data || []).length);
-  }
-  rerenderStudyQuestion(qid);
-}
 
-async function postStudyAnswer(qid) {
-  var input = document.getElementById('sq-in-' + qid);
-  var text = (input.value || '').trim();
-  if (!text) { stToast('Write your answer first'); input.focus(); return; }
-  var btn = document.getElementById('sq-post-' + qid);
-  if (btn) { btn.disabled = true; btn.textContent = 'Posting...'; }
-  var res = await _sb.from('study_answers').insert({ question_id: qid, user_id: _user.id, body: text });
-  if (res.error) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Post answer'; }
-    stToast('Couldn\'t post your answer. Try again.');
-    return;
-  }
-  await refreshStudyAnswers(qid);
-  stToast('Answer posted');
-}
 
-function editStudyAnswer(qid) { _study.editing = qid; rerenderStudyQuestion(qid); var t = document.getElementById('sq-in-' + qid); if (t) t.focus(); }
-function cancelStudyEdit() { var qid = _study.editing; _study.editing = null; if (qid) rerenderStudyQuestion(qid); }
 
-async function saveStudyAnswer(qid) {
-  var mine = stMyAnswer(qid);
-  var text = (document.getElementById('sq-in-' + qid).value || '').trim();
-  if (!mine) return;
-  if (!text) {
-    if (!confirm('Delete your answer?')) return;
-    await _sb.from('study_answers').delete().eq('id', mine.id);
-  } else {
-    var res = await _sb.from('study_answers').update({ body: text, updated_at: new Date().toISOString() }).eq('id', mine.id);
-    if (res.error) { stToast('Couldn\'t save. Try again.'); return; }
-  }
-  _study.editing = null;
-  await refreshStudyAnswers(qid);
-}
 
-async function toggleStudyHeart(aid, qid) {
-  var a = (_study.data.answersByQ[qid] || []).find(function(x) { return x.id === aid; });
-  if (!a) return;
-  var hearted = (a.study_answer_hearts || []).some(function(h) { return h.user_id === _user.id; });
-  if (hearted) await _sb.from('study_answer_hearts').delete().eq('answer_id', aid).eq('user_id', _user.id);
-  else await _sb.from('study_answer_hearts').insert({ answer_id: aid, user_id: _user.id });
-  await refreshStudyAnswers(qid);
-}
 
 async function toggleStudyCheckin() {
   var d = _study.data;
@@ -469,7 +337,6 @@ async function toggleStudyCheckin() {
   var res = await _sb.from('study_checkins').select('user_id').eq('session_id', d.sessionId);
   d.checkins = (res.data || []).map(function(c) { return c.user_id; });
   var el = document.getElementById('st-checkin'); if (el) el.innerHTML = renderStudyCheckin();
-  var p = document.getElementById('st-progress'); if (p) p.innerHTML = renderStudyProgress();
 }
 
 async function sendStudyNotify(sessionId) {
@@ -596,7 +463,6 @@ function renderStudyEditor() {
       steListField('questions', i, 'note', 'Leader note (only leaders see this)', q.note, { area: true, rows: 2 }) + '</div>';
   });
   html += '<button class="ste-add" onclick="steAdd(\'questions\')">+ Add question</button>';
-  if (e.origQIds.length) html += '<div class="ste-hint">Removing a question also removes its answers.</div>';
   html += '</div>';
 
   html += '<div class="card"><div class="st-sec-label" style="margin-bottom:10px;">Word study</div>';
@@ -782,7 +648,7 @@ async function saveStudyWeek() {
 
 async function deleteStudyWeek() {
   if (!_stEdit || !_stEdit.id) return;
-  if (!confirm('Delete this week, including everyone\'s answers? This can\'t be undone.')) return;
+  if (!confirm('Delete this week? This can\'t be undone.')) return;
   var res = await _sb.from('study_sessions').delete().eq('id', _stEdit.id);
   if (res.error) { stToast('Couldn\'t delete. Try again.'); return; }
   _stEdit = null;
