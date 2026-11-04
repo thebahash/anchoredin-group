@@ -114,7 +114,8 @@
   <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;">
     <div style="font-size:28px;font-weight:800;color:var(--navy);">Anchored In</div>
     <div style="font-size:13px;font-weight:700;color:var(--gold);letter-spacing:0.12em;text-transform:uppercase;margin-top:2px;">Group</div>
-    <div style="color:var(--muted);font-size:14px;margin-top:8px;">Loading...</div>
+    <div id="loading-msg" style="color:var(--muted);font-size:14px;margin-top:8px;text-align:center;max-width:280px;line-height:1.5;">Loading...</div>
+    <button id="loading-retry" class="btn btn-pray" style="display:none;margin-top:8px;" onclick="retryInit()">Try again</button>
   </div>
 </div>
 
@@ -127,6 +128,10 @@
       <div style="font-size:13px;font-weight:700;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:10px;">Anchored In</div>
       <div style="font-size:36px;font-weight:800;color:#fff;letter-spacing:-0.5px;line-height:1.1;margin-bottom:14px;">Group</div>
       <div style="font-size:16px;color:rgba(255,255,255,0.7);line-height:1.6;max-width:300px;margin:0 auto;">A prayer request app built for Bible studies and small groups.</div>
+    </div>
+
+    <div id="ios-signin-hint" style="display:none;background:#fff8e7;border-bottom:1px solid var(--border);padding:12px 20px;font-size:13px;line-height:1.5;color:var(--navy);">
+      <b>Already use the app from your home screen?</b> Open it there instead. Your phone keeps that sign-in separate from Safari, so you'll stay signed in.
     </div>
 
     <!-- Feature strips -->
@@ -601,16 +606,75 @@ async function apiHeaders() {
 }
 
 // ── INIT ──
-async function init() {
+// ── BOOT ──
+// A weak connection must never look like being signed out. If a saved session exists
+// but we can't reach the server, show a retry screen instead of the sign-in screen.
+function hasStoredSession() {
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') !== -1 && localStorage.getItem(k)) return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+async function getConfig() {
   try {
     var res = await fetch('/api/config');
+    if (!res.ok) throw new Error('config ' + res.status);
     var cfg = await res.json();
-    _sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+    try { localStorage.setItem('app_config', JSON.stringify(cfg)); } catch (e) {}
+    return cfg;
+  } catch (e) {
+    var cached = null;
+    try { cached = JSON.parse(localStorage.getItem('app_config') || 'null'); } catch (e2) {}
+    if (cached && cached.supabaseUrl) return cached;
+    throw e;
+  }
+}
+
+function showSignIn() {
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  var hint = document.getElementById('ios-signin-hint');
+  if (hint) hint.style.display = (isIOS && !standalone) ? 'block' : 'none';
+  showScreen('screen-phone');
+}
+
+function showConnectionProblem() {
+  document.getElementById('loading-msg').textContent = 'Couldn\'t connect. You\'re still signed in. Check your signal and try again.';
+  document.getElementById('loading-retry').style.display = 'inline-block';
+  showScreen('screen-loading');
+}
+
+function retryInit() {
+  document.getElementById('loading-msg').textContent = 'Loading...';
+  document.getElementById('loading-retry').style.display = 'none';
+  init();
+}
+
+async function init() {
+  // On a very weak connection the sign-in check can keep retrying for ~30 seconds.
+  // Don't leave people staring at "Loading..." that long.
+  var watchdog = setTimeout(function() {
+    if (document.getElementById('screen-loading').classList.contains('active') && hasStoredSession()) showConnectionProblem();
+  }, 8000);
+  try {
+    var cfg = await getConfig();
+    if (!_sb) {
+      _sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+      });
+    }
 
     // Check for invite link param
     var joinCode = new URLSearchParams(window.location.search).get('join');
 
-    var { data: { session } } = await _sb.auth.getSession();
+    var sessRes = await _sb.auth.getSession();
+    var session = sessRes.data && sessRes.data.session;
+    if (!session && sessRes.error && hasStoredSession()) { showConnectionProblem(); return; }
+
     if (session) {
       _user = session.user;
       await loadUserContext();
@@ -619,31 +683,37 @@ async function init() {
         await autoJoinGroup(joinCode.toUpperCase());
       }
     } else {
-      showScreen('screen-phone');
+      showSignIn();
       // Store join code so it survives auth flow
       if (joinCode) window._pendingJoinCode = joinCode.toUpperCase();
     }
   } catch (e) {
-    showScreen('screen-phone');
+    if (hasStoredSession()) showConnectionProblem();
+    else showSignIn();
+  } finally {
+    clearTimeout(watchdog);
   }
 }
 
 async function loadUserContext() {
-  var { data: profile } = await _sb.from('profiles').select('*').eq('id', _user.id).single();
+  var { data: profile, error: profileErr } = await _sb.from('profiles').select('*').eq('id', _user.id).single();
+  // PGRST116 = no row. Anything else (network, server) is a connection problem, not a sign-out.
+  if (profileErr && profileErr.code !== 'PGRST116') throw profileErr;
   _profile = profile;
 
   if (!profile) {
-    showScreen('screen-phone');
+    showSignIn();
     return;
   }
 
-  var { data: membership } = await _sb
+  var { data: membership, error: memberErr } = await _sb
     .from('members')
     .select('*, groups(*)')
     .eq('user_id', _user.id)
     .order('joined_at', { ascending: false })
     .limit(1)
     .single();
+  if (memberErr && memberErr.code !== 'PGRST116') throw memberErr;
 
   if (membership) {
     _membership = membership;
@@ -1818,7 +1888,7 @@ async function signOut() {
   if (!confirm('Sign out?')) return;
   await _sb.auth.signOut();
   _user = null; _profile = null; _group = null; _membership = null;
-  showScreen('screen-phone');
+  showSignIn();
 }
 
 async function showMemberDetail(userId) {
