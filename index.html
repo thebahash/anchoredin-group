@@ -1336,6 +1336,7 @@ function renderMemberRow(m) {
     avatarHtml(name, m.profiles ? m.profiles.avatar_url : null, isMe ? 'background:var(--gold);color:var(--navy);' : '') +
     '<div class="member-info">' +
     '<div class="member-name">' + esc(name) + (isMe ? ' <span style="color:var(--muted);font-weight:400;">(you)</span>' : '') + '</div>' +
+    (m.role === 'leader' ? '<div class="member-role">Leader</div>' : '') +
     '</div>' +
     (!isMe ? '<div class="member-actions"><button class="icon-btn" onclick="event.stopPropagation();textMember(\'' + (m.profiles ? m.profiles.phone : '') + '\')" title="Text">💬</button></div>' : '') +
     '</div>';
@@ -1947,16 +1948,26 @@ async function showMemberDetail(userId) {
   showScreen('screen-member');
 }
 
+async function setMemberRole(userId, role) {
+  var name = (_membersMap[userId] && _membersMap[userId].name) || 'This person';
+  var res = await _sb.from('members').update({ role: role }).eq('group_id', _group.id).eq('user_id', userId).select('user_id, role');
+  if (res.error || !res.data || !res.data.length) {
+    // An update blocked by the database's access rules changes 0 rows without an error, so check both
+    stToast('Couldn\'t change ' + name + '\'s role' + (res.error ? ': ' + res.error.message : '. Try again, or check that you\'re still a leader.'));
+    return;
+  }
+  stToast(role === 'leader' ? name + ' is now a leader' : name + ' is no longer a leader');
+  showScreen('screen-main'); switchTab('members');
+}
+
 async function promoteLeader(userId) {
   if (!confirm('Make this person a leader?')) return;
-  await _sb.from('members').update({ role: 'leader' }).eq('group_id', _group.id).eq('user_id', userId);
-  showScreen('screen-main'); switchTab('members');
+  await setMemberRole(userId, 'leader');
 }
 
 async function demoteLeader(userId) {
   if (!confirm('Remove leader role?')) return;
-  await _sb.from('members').update({ role: 'member' }).eq('group_id', _group.id).eq('user_id', userId);
-  showScreen('screen-main'); switchTab('members');
+  await setMemberRole(userId, 'member');
 }
 
 function textMember(phone) { if (phone) window.open('sms:' + phone); }
