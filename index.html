@@ -706,14 +706,16 @@ async function loadUserContext() {
     return;
   }
 
-  var { data: membership, error: memberErr } = await _sb
+  var { data: memberships, error: memberErr } = await _sb
     .from('members')
     .select('*, groups(*)')
     .eq('user_id', _user.id)
-    .order('joined_at', { ascending: false })
-    .limit(1)
-    .single();
-  if (memberErr && memberErr.code !== 'PGRST116') throw memberErr;
+    .order('joined_at', { ascending: false });
+  if (memberErr) throw memberErr;
+  memberships = (memberships || []).filter(function(m) { return m.groups; });
+  // Open the group used last on this device; otherwise the most recently joined
+  var lastId = savedGroupId();
+  var membership = memberships.find(function(m) { return m.group_id === lastId; }) || memberships[0] || null;
 
   if (membership) {
     _membership = membership;
@@ -722,6 +724,13 @@ async function loadUserContext() {
   } else {
     showScreen('screen-group');
   }
+}
+
+function savedGroupId() {
+  try { return localStorage.getItem('last_group_' + _user.id); } catch (e) { return null; }
+}
+function rememberGroup() {
+  try { if (_user && _group) localStorage.setItem('last_group_' + _user.id, _group.id); } catch (e) {}
 }
 
 // ── AUTH ──
@@ -1048,17 +1057,6 @@ async function renameGroup() {
     _group.name = newName;
     document.getElementById('group-name-label').textContent = newName;
   }
-}
-
-function switchGroup(groupId) {
-  var membership = _allMemberships.find(function(m) { return m.group_id === groupId; });
-  if (!membership) return;
-  _group = membership.groups;
-  _membership = membership;
-  document.getElementById('group-name-label').textContent = _group.name;
-  _reqCache = {}; // clear cache on group switch
-  closeGroupDrawer();
-  switchTab(_currentTab);
 }
 
 // ── FEED ──
@@ -1821,16 +1819,17 @@ async function clearPinnedNote() {
 }
 
 async function switchGroup(groupId) {
-  var { data: grp } = await _sb.from('groups').select('*').eq('id', groupId).single();
-  if (grp) {
-    _group = grp;
-    var { data: mem } = await _sb.from('members').select('*').eq('group_id', groupId).eq('user_id', _user.id).single();
-    _membership = mem;
-    document.getElementById('group-name-label').textContent = grp.name;
-    showScreen('screen-main');
-    switchTab('requests');
-    loadFeed(true);
-  }
+  closeGroupDrawer();
+  var { data: mem } = await _sb.from('members').select('*, groups(*)').eq('group_id', groupId).eq('user_id', _user.id).single();
+  if (!mem || !mem.groups) return;
+  _membership = mem;
+  _group = mem.groups;
+  _reqCache = {}; // clear cache on group switch
+  document.getElementById('group-name-label').textContent = _group.name;
+  renderPinnedNote();
+  subscribeToGroup();
+  showScreen('screen-main');
+  switchTab(_currentTab);
 }
 
 async function submitCreateGroup() {
@@ -1998,6 +1997,7 @@ function showScreen(id) {
 }
 
 function switchTab(tab) {
+  rememberGroup();
   if (tab === 'mine') { setFeedFilter('mine', true); tab = 'requests'; } // "Mine" is now a filter on Requests
   _currentTab = tab;
   document.querySelectorAll('.tab-content').forEach(function(t) { t.style.display = 'none'; });
